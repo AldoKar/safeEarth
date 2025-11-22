@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\meteoriteController;
 use Illuminate\Support\Facades\Route;
 use Inertia\Inertia;
 use Laravel\Fortify\Features;
@@ -35,5 +36,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('modelos-defensa');
     })->name('modelos-defensa');
 });
+
+// rutas de los meteoritos
+Route::get('meteorites', [meteoriteController::class, 'getMeteoriteData'])->name('meteorites');
 
 require __DIR__ . '/settings.php';
