@@ -95,7 +95,7 @@ export default function ModelosDefensa() {
                                 className="relative overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-white dark:bg-gray-900 hover:shadow-lg transition-all duration-300"
                             >
                                 {/* 3D Model Canvas */}
-                                <div className="relative h-64 bg-gradient-to-b from-gray-900 to-black">
+                                <div className="relative h-64 bg-black">
                                     <Canvas camera={{ position: [0, 0, 5], fov: 50 }}>
                                         <Suspense fallback={
                                             <mesh>
@@ -108,12 +108,8 @@ export default function ModelosDefensa() {
                                             <directionalLight position={[5, 5, 5]} intensity={2} />
                                             <directionalLight position={[-5, -5, -5]} intensity={1} />
                                             <pointLight position={[0, 10, 0]} intensity={1.5} />
-                                            
-                                            <Stars radius={100} depth={50} count={1000} factor={4} saturation={0} />
-                                            
-                                            {/* Grid helper to see the space */}
-                                            <gridHelper args={[10, 10]} position={[0, -2, 0]} />
-                                            
+                                    
+                                            <gridHelper args={[10, 10]} position={[0, -2, 0]} />                
                                             <SpaceshipModel 
                                                 modelPath={model.modelPath}
                                                 scale={1}
