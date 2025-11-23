@@ -61,25 +61,36 @@ export default function Simulacion2D() {
     const [isControlsDragging, setIsControlsDragging] = useState(false);
     const [controlsDragStart, setControlsDragStart] = useState({ x: 0, y: 0 });
     const [showImpactModal, setShowImpactModal] = useState(false);
+    const [isDefenseMode, setIsDefenseMode] = useState(false);
+    const [defenseData, setDefenseData] = useState<any>(null);
     const animationRef = useRef<number | undefined>(undefined);
 
     useEffect(() => {
-        // Cargar datos del endpoint de Kepler
+        // Cargar datos del endpoint correspondiente
         setIsLoading(true);
-        fetch('/keppler-data')
+        const endpoint = isDefenseMode ? '/defensa-datos-2d' : '/keppler-data';
+        
+        fetch(endpoint)
             .then((response) => response.json())
-            .then((apiResponse: KeplerAPIResponse) => {
-                if (apiResponse.data && apiResponse.data.length > 0) {
-                    setOrbitData(apiResponse.data);
+            .then((apiResponse: any) => {
+                if (isDefenseMode) {
+                    setDefenseData(apiResponse);
+                    if (apiResponse.data && apiResponse.data.length > 0) {
+                        setOrbitData(apiResponse.data);
+                    }
+                } else {
+                    if (apiResponse.data && apiResponse.data.length > 0) {
+                        setOrbitData(apiResponse.data);
+                    }
                 }
             })
             .catch(error => {
-                console.error('Error loading Kepler data:', error);
+                console.error('Error loading data:', error);
             })
             .finally(() => {
                 setIsLoading(false);
             });
-    }, []);
+    }, [isDefenseMode]);
 
     useEffect(() => {
         if (orbitData.length === 0) return;
@@ -320,6 +331,139 @@ export default function Simulacion2D() {
                 ctx.fillText(`${distanceKm} km`, x, y - 20);
             }
 
+            // Dibujar cohete de defensa si está en modo defensa
+            if (isDefenseMode && defenseData?.rocket) {
+                const rocketTrajectory = defenseData.rocket.trajectory;
+                const launchTime = defenseData.rocket.launch_timestamp;
+                
+                // Encontrar la posición del cohete en el frame actual
+                const currentTime = orbitData[currentFrame]?.time_sec;
+                if (currentTime >= launchTime && rocketTrajectory.length > 0) {
+                    // Encontrar el punto más cercano en la trayectoria del cohete
+                    const rocketPoint = rocketTrajectory.find((point: any, idx: number) => {
+                        const nextPoint = rocketTrajectory[idx + 1];
+                        return point.t <= currentTime && (!nextPoint || nextPoint.t > currentTime);
+                    });
+
+                    if (rocketPoint) {
+                        const rx = centerX + rocketPoint.x * scale;
+                        const ry = centerY - rocketPoint.y * scale;
+
+                        // Trayectoria del cohete recorrida
+                        ctx.strokeStyle = 'rgba(59, 130, 246, 0.5)';
+                        ctx.lineWidth = 2;
+                        ctx.beginPath();
+                        let started = false;
+                        for (const point of rocketTrajectory) {
+                            if (point.t > currentTime) break;
+                            const px = centerX + point.x * scale;
+                            const py = centerY - point.y * scale;
+                            if (!started) {
+                                ctx.moveTo(px, py);
+                                started = true;
+                            } else {
+                                ctx.lineTo(px, py);
+                            }
+                        }
+                        ctx.stroke();
+
+                        // Glow del cohete
+                        const rocketGlow = ctx.createRadialGradient(rx, ry, 0, rx, ry, 12);
+                        rocketGlow.addColorStop(0, 'rgba(59, 130, 246, 0.8)');
+                        rocketGlow.addColorStop(0.5, 'rgba(59, 130, 246, 0.4)');
+                        rocketGlow.addColorStop(1, 'rgba(59, 130, 246, 0)');
+                        ctx.fillStyle = rocketGlow;
+                        ctx.beginPath();
+                        ctx.arc(rx, ry, 12, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Cohete
+                        ctx.fillStyle = '#3B82F6';
+                        ctx.beginPath();
+                        ctx.arc(rx, ry, 6, 0, Math.PI * 2);
+                        ctx.fill();
+
+                        // Borde del cohete
+                        ctx.strokeStyle = 'rgba(255, 255, 255, 0.6)';
+                        ctx.lineWidth = 1;
+                        ctx.beginPath();
+                        ctx.arc(rx, ry, 6, 0, Math.PI * 2);
+                        ctx.stroke();
+
+                        // Etiqueta
+                        ctx.fillStyle = isDark ? '#3B82F6' : '#1E40AF';
+                        ctx.font = '11px monospace';
+                        ctx.textAlign = 'center';
+                        ctx.fillText('DEFENSA', rx, ry - 15);
+                    }
+                }
+            }
+
+            // Dibujar satélites si están en modo defensa
+            if (isDefenseMode && defenseData?.satellites) {
+                const currentTime = orbitData[currentFrame]?.time_sec;
+                
+                defenseData.satellites.forEach((satellite: any) => {
+                    if (currentTime >= satellite.deploy_timestamp) {
+                        const satTrajectory = satellite.trajectory;
+                        
+                        // Encontrar posición del satélite
+                        const satPoint = satTrajectory.find((point: any, idx: number) => {
+                            const nextPoint = satTrajectory[idx + 1];
+                            return point.t <= currentTime && (!nextPoint || nextPoint.t > currentTime);
+                        });
+
+                        if (satPoint) {
+                            const sx = centerX + satPoint.x * scale;
+                            const sy = centerY - satPoint.y * scale;
+
+                            // Verificar si ya detonó
+                            const hasDetonated = currentTime >= satellite.detonation_timestamp;
+
+                            if (hasDetonated) {
+                                // Efecto de explosión
+                                const explosionAge = currentTime - satellite.detonation_timestamp;
+                                const explosionRadius = Math.min(30, 10 + explosionAge * 2);
+                                const explosionAlpha = Math.max(0, 1 - explosionAge / 10);
+
+                                // Explosión con múltiples anillos
+                                for (let i = 0; i < 3; i++) {
+                                    const ringRadius = explosionRadius * (1 - i * 0.2);
+                                    const ringAlpha = explosionAlpha * (1 - i * 0.3);
+                                    
+                                    const explosionGradient = ctx.createRadialGradient(sx, sy, 0, sx, sy, ringRadius);
+                                    explosionGradient.addColorStop(0, `rgba(255, 200, 0, ${ringAlpha})`);
+                                    explosionGradient.addColorStop(0.5, `rgba(255, 100, 0, ${ringAlpha * 0.6})`);
+                                    explosionGradient.addColorStop(1, `rgba(255, 0, 0, 0)`);
+                                    ctx.fillStyle = explosionGradient;
+                                    ctx.beginPath();
+                                    ctx.arc(sx, sy, ringRadius, 0, Math.PI * 2);
+                                    ctx.fill();
+                                }
+
+                                // Núcleo brillante
+                                ctx.fillStyle = `rgba(255, 255, 255, ${explosionAlpha})`;
+                                ctx.beginPath();
+                                ctx.arc(sx, sy, 3, 0, Math.PI * 2);
+                                ctx.fill();
+                            } else {
+                                // Satélite antes de detonar
+                                ctx.fillStyle = 'rgba(34, 197, 94, 0.6)';
+                                ctx.beginPath();
+                                ctx.arc(sx, sy, 4, 0, Math.PI * 2);
+                                ctx.fill();
+
+                                ctx.strokeStyle = 'rgba(34, 197, 94, 0.8)';
+                                ctx.lineWidth = 1;
+                                ctx.beginPath();
+                                ctx.arc(sx, sy, 4, 0, Math.PI * 2);
+                                ctx.stroke();
+                            }
+                        }
+                    }
+                });
+            }
+
             // Dibujar ejes de coordenadas con marcadores
             ctx.strokeStyle = isDark ? 'rgba(255, 255, 255, 0.15)' : 'rgba(0, 0, 0, 0.15)';
             ctx.lineWidth = 1;
@@ -418,6 +562,13 @@ export default function Simulacion2D() {
         setShowImpactModal(false);
     };
 
+    const handleToggleDefense = () => {
+        setIsDefenseMode(!isDefenseMode);
+        setCurrentFrame(0);
+        setIsPlaying(false);
+        setShowImpactModal(false);
+    };
+
     const handleControlsMouseDown = (e: React.MouseEvent) => {
         setIsControlsDragging(true);
         setControlsDragStart({ x: e.clientX - controlsPosition.x, y: e.clientY - controlsPosition.y });
@@ -468,24 +619,74 @@ export default function Simulacion2D() {
                                 >
                                     {/* Real-time data overlay - Top Right */}
                                     {currentPoint && (
-                                        <div className="ml-auto bg-black/70 backdrop-blur-sm rounded-lg p-4 border border-white/20 max-w-xs pointer-events-auto">
-                                            <h3 className="font-bold mb-2 text-sm">Datos en Tiempo Real</h3>
-                                            <div className="space-y-2 text-xs">
-                                                <div className="flex justify-between">
-                                                    <span className="text-gray-300">Tiempo:</span>
-                                                    <span className="font-mono">{(currentPoint.time_sec / 86400).toFixed(2)} días</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span className="text-gray-300">Posición X:</span>
-                                                    <span className="font-mono">{(currentPoint.x_m / 1e6).toFixed(2)} Mm</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span className="text-gray-300">Posición Y:</span>
-                                                    <span className="font-mono">{(currentPoint.y_m / 1e6).toFixed(2)} Mm</span>
-                                                </div>
-                                                <div className="flex justify-between">
-                                                    <span className="text-gray-300">Distancia:</span>
-                                                    <span className="font-mono">{(currentPoint.r_m / 1000).toFixed(0)} km</span>
+                                        <div className="ml-auto space-y-2 pointer-events-auto">
+                                            {/* Botón de modo defensa */}
+                                            <Button
+                                                onClick={handleToggleDefense}
+                                                variant={isDefenseMode ? "default" : "outline"}
+                                                size="sm"
+                                                className={isDefenseMode ? "bg-blue-600 hover:bg-blue-700" : ""}
+                                            >
+                                                {isDefenseMode ? (
+                                                    <>
+                                                        <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                                                            <path d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3z" />
+                                                        </svg>
+                                                        Modo Defensa Activo
+                                                    </>
+                                                ) : (
+                                                    <>
+                                                        <svg className="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 2L4 5v6.09c0 5.05 3.41 9.76 8 10.91 4.59-1.15 8-5.86 8-10.91V5l-8-3z" />
+                                                        </svg>
+                                                        Activar Defensa
+                                                    </>
+                                                )}
+                                            </Button>
+                                            
+                                            <div className="bg-black/70 backdrop-blur-sm rounded-lg p-4 border border-white/20 max-w-xs">
+                                                <h3 className="font-bold mb-2 text-sm flex items-center gap-2">
+                                                    {isDefenseMode ? (
+                                                        <>
+                                                            <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+                                                            Sistema de Defensa
+                                                        </>
+                                                    ) : (
+                                                        'Datos en Tiempo Real'
+                                                    )}
+                                                </h3>
+                                                <div className="space-y-2 text-xs">
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-300">Tiempo:</span>
+                                                        <span className="font-mono">{(currentPoint.time_sec / 86400).toFixed(2)} días</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-300">Posición X:</span>
+                                                        <span className="font-mono">{(currentPoint.x_m / 1e6).toFixed(2)} Mm</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-300">Posición Y:</span>
+                                                        <span className="font-mono">{(currentPoint.y_m / 1e6).toFixed(2)} Mm</span>
+                                                    </div>
+                                                    <div className="flex justify-between">
+                                                        <span className="text-gray-300">Distancia:</span>
+                                                        <span className="font-mono">{(currentPoint.r_m / 1000).toFixed(0)} km</span>
+                                                    </div>
+                                                    {isDefenseMode && defenseData && (
+                                                        <>
+                                                            <div className="border-t border-white/20 my-2"></div>
+                                                            <div className="flex justify-between">
+                                                                <span className="text-gray-300">Estado:</span>
+                                                                <span className="font-mono text-blue-400">
+                                                                    {defenseData.metadata?.has_collided ? 'Colisión Evitada' : 'Defensa Activa'}
+                                                                </span>
+                                                            </div>
+                                                            <div className="flex justify-between">
+                                                                <span className="text-gray-300">Masa Meteorito:</span>
+                                                                <span className="font-mono">{(defenseData.metadata?.meteor_mass_kg / 1e12).toFixed(2)} Tt</span>
+                                                            </div>
+                                                        </>
+                                                    )}
                                                 </div>
                                             </div>
                                         </div>
@@ -595,11 +796,26 @@ export default function Simulacion2D() {
                 <Dialog open={showImpactModal} onOpenChange={setShowImpactModal}>
                     <DialogContent className="sm:max-w-md">
                         <DialogHeader>
-                            <DialogTitle className="text-2xl font-bold text-red-600">Impacto Detectado</DialogTitle>
+                            <DialogTitle className={`text-2xl font-bold ${isDefenseMode && defenseData?.metadata?.termination_reason === 'Escaped' ? 'text-green-600' : 'text-red-600'}`}>
+                                {isDefenseMode && defenseData?.metadata?.termination_reason === 'Escaped' 
+                                    ? '¡Defensa Exitosa!' 
+                                    : 'Impacto Detectado'}
+                            </DialogTitle>
                             <DialogDescription className="text-base pt-4">
-                                El meteorito ha impactado con la Tierra. La trayectoria orbital ha concluido en colisión.
-                                <br /><br />
-                                <span className="font-semibold">Este evento representa una amenaza significativa para el planeta.</span>
+                                {isDefenseMode && defenseData?.metadata?.termination_reason === 'Escaped' ? (
+                                    <>
+                                        El sistema de defensa ha interceptado exitosamente el meteorito. 
+                                        El objeto ha sido desviado de su trayectoria de colisión.
+                                        <br /><br />
+                                        <span className="font-semibold text-green-600">La Tierra está a salvo.</span>
+                                    </>
+                                ) : (
+                                    <>
+                                        El meteorito ha impactado con la Tierra. La trayectoria orbital ha concluido en colisión.
+                                        <br /><br />
+                                        <span className="font-semibold">Este evento representa una amenaza significativa para el planeta.</span>
+                                    </>
+                                )}
                             </DialogDescription>
                         </DialogHeader>
                         <DialogFooter className="sm:justify-center">

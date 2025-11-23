@@ -2,10 +2,10 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import { Canvas, useFrame, useLoader } from '@react-three/fiber';
-import { OrbitControls, useGLTF, Stars, Html } from '@react-three/drei';
+import { OrbitControls, useGLTF, Stars, Html, Line } from '@react-three/drei';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { Physics, RigidBody, RapierRigidBody, CuboidCollider, BallCollider, interactionGroups } from '@react-three/rapier';
+import { Physics, RigidBody, RapierRigidBody, CuboidCollider, BallCollider } from '@react-three/rapier';
 import {
     Card,
     CardContent,
@@ -24,6 +24,7 @@ import {
     DialogHeader,
     DialogTitle,
 } from '@/components/ui/dialog';
+import { Play, Pause, RotateCcw, Zap, Target, Shield, Rocket, AlertTriangle } from 'lucide-react';
 
 import EarthDayMap from "../../assets/textures/8k_earth_daymap.jpg"
 import EarthNormalMap from "../../assets/textures/8k_earth_normal_map.jpg"
@@ -42,14 +43,13 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 interface OrbitPoint {
-    time_sec: number;
-    x_m: number;
-    y_m: number;
-    z_m: number;
-    r_m: number;
-    vx_m_s?: number;
-    vy_m_s?: number;
-    vz_m_s?: number;
+    t: number;
+    x: number;
+    y: number;
+    z: number;
+    vx?: number;
+    vy?: number;
+    vz?: number;
 }
 
 interface KeplerAPIResponse {
@@ -173,6 +173,161 @@ function AsteroidWithPhysics({ position, onCollision, isSolid }: { position: [nu
     );
 }
 
+// Defense mode components
+
+interface RocketTrajectoryPropsExtended {
+    points: Array<{ x: number; y: number; z: number; t: number }>;
+    currentTime: number;
+    launchTime: number;
+}
+
+function RocketTrajectory({ points, currentTime, launchTime }: RocketTrajectoryPropsExtended) {
+    if (!points || points.length === 0) return null;
+
+    const positions = points.map(p => [
+        (p.x / 1e7) * 50,
+        (p.y / 1e7) * 50,
+        (p.z / 1e7) * 50
+    ] as [number, number, number]);
+
+    // Buscar posición actual del cohete
+    let currentPos = points[0];
+    for (let i = 0; i < points.length; i++) {
+        if (points[i].t <= currentTime) {
+            currentPos = points[i];
+        } else {
+            break;
+        }
+    }
+
+    const scaledPosition: [number, number, number] = [
+        (currentPos.x / 1e7) * 50,
+        (currentPos.y / 1e7) * 50,
+        (currentPos.z / 1e7) * 50
+    ];
+
+    // Mostrar cohete solo si ya fue lanzado
+    const isLaunched = currentTime >= launchTime;
+
+    return (
+        <>
+            {/* Trayectoria azul del cohete */}
+            <Line
+                points={positions}
+                color="#3b82f6"
+                lineWidth={2}
+                opacity={0.8}
+                transparent
+            />
+            
+            {/* Cohete - esfera azul */}
+            {isLaunched && (
+                <mesh position={scaledPosition}>
+                    <sphereGeometry args={[4, 32, 32]} />
+                    <meshStandardMaterial
+                        color="#3b82f6"
+                        emissive="#3b82f6"
+                        emissiveIntensity={1.5}
+                    />
+                </mesh>
+            )}
+        </>
+    );
+}
+
+interface SatelliteTrajectoryProps {
+    satellite: {
+        id: number;
+        trajectory: Array<{ x: number; y: number; z: number; t: number }>;
+        deploy_timestamp: number;
+        detonation_timestamp: number;
+    };
+    currentTime: number;
+}
+
+function SatelliteTrajectory({ satellite, currentTime }: SatelliteTrajectoryProps) {
+    if (!satellite.trajectory || satellite.trajectory.length === 0) return null;
+
+    // Solo mostrar si ya fue desplegado
+    const isDeployed = currentTime >= satellite.deploy_timestamp;
+    if (!isDeployed) return null;
+
+    const positions = satellite.trajectory.map(p => [
+        (p.x / 1e7) * 50,
+        (p.y / 1e7) * 50,
+        (p.z / 1e7) * 50
+    ] as [number, number, number]);
+
+    // Buscar posición actual en la trayectoria
+    let currentPos = satellite.trajectory[0];
+    for (let i = 0; i < satellite.trajectory.length; i++) {
+        if (satellite.trajectory[i].t <= currentTime) {
+            currentPos = satellite.trajectory[i];
+        } else {
+            break;
+        }
+    }
+
+    const scaledPosition: [number, number, number] = [
+        (currentPos.x / 1e7) * 50,
+        (currentPos.y / 1e7) * 50,
+        (currentPos.z / 1e7) * 50
+    ];
+
+    return (
+        <>
+            {/* Trayectoria verde */}
+            <Line
+                points={positions}
+                color="#22c55e"
+                lineWidth={2}
+                opacity={0.7}
+                transparent
+            />
+            
+            {/* Satélite verde - visible después del deploy */}
+            <mesh position={scaledPosition}>
+                <sphereGeometry args={[4, 32, 32]} />
+                <meshStandardMaterial
+                    color="#22c55e"
+                    emissive="#22c55e"
+                    emissiveIntensity={1.5}
+                />
+            </mesh>
+        </>
+    );
+}
+
+interface ExplosionProps {
+    position: [number, number, number];
+    startTime: number;
+    currentTime: number;
+}
+
+function Explosion({ position, startTime, currentTime }: ExplosionProps) {
+    const timeSinceExplosion = currentTime - startTime;
+    const maxDuration = 5; // 5 seconds
+    
+    if (timeSinceExplosion < 0 || timeSinceExplosion > maxDuration) return null;
+
+    const progress = timeSinceExplosion / maxDuration;
+    const scale = 2 + progress * 8; // Expand from 2 to 10
+    const opacity = Math.max(0, 1 - progress); // Fade out
+
+    return (
+        <mesh position={position} scale={scale}>
+            <sphereGeometry args={[1, 32, 32]} />
+            <meshStandardMaterial
+                color="#f97316"
+                emissive="#ea580c"
+                emissiveIntensity={2 - progress * 2}
+                transparent
+                opacity={opacity}
+            />
+        </mesh>
+    );
+}
+
 function AsteroidModel({ position }: { position: [number, number, number] }) {
     const gltf = useGLTF('/models/asteroid.gltf');
     const meshRef = useRef<THREE.Group>(null);
@@ -202,33 +357,37 @@ function AsteroidModel({ position }: { position: [number, number, number] }) {
 }
 
 function OrbitPath({ points }: { points: OrbitPoint[] }) {
-    const lineRef = useRef<THREE.Line>(null);
+    const lineRef = useRef<THREE.Line>(null!);
 
     useEffect(() => {
-        if (points.length === 0) return;
+        if (points.length === 0 || !lineRef.current) return;
 
         const positions = new Float32Array(points.length * 3);
         points.forEach((point, i) => {
-            positions[i * 3] = (point.x_m / 1e7) * 50;
-            positions[i * 3 + 1] = (point.y_m / 1e7) * 50;
-            positions[i * 3 + 2] = (point.z_m / 1e7) * 50;
+            positions[i * 3] = (point.x / 1e7) * 50;
+            positions[i * 3 + 1] = (point.y / 1e7) * 50;
+            positions[i * 3 + 2] = (point.z / 1e7) * 50;
         });
 
-        if (lineRef.current) {
-            const geometry = lineRef.current.geometry;
-            geometry.setAttribute(
-                'position',
-                new THREE.BufferAttribute(positions, 3)
-            );
-            geometry.attributes.position.needsUpdate = true;
-        }
+        const geometry = lineRef.current.geometry;
+        geometry.setAttribute(
+            'position',
+            new THREE.BufferAttribute(positions, 3)
+        );
+        geometry.attributes.position.needsUpdate = true;
     }, [points]);
 
     return (
-        <line ref={lineRef}>
-            <bufferGeometry />
-            <lineBasicMaterial color="#3b82f6" opacity={0.5} transparent linewidth={3} />
-        </line>
+        <>
+            <primitive object={new THREE.Line(
+                new THREE.BufferGeometry(),
+                new THREE.LineBasicMaterial({ 
+                    color: "#3b82f6", 
+                    opacity: 0.5, 
+                    transparent: true 
+                })
+            )} ref={lineRef} />
+        </>
     );
 }
 
@@ -240,14 +399,17 @@ interface HUDProps {
     speed: number;
     hasCollided: boolean;
     cameraFollow: boolean;
+    isDefenseMode: boolean;
+    defenseData: any;
     onPlayPause: () => void;
     onReset: () => void;
     onSpeedChange: (speed: number) => void;
     onFrameChange: (frame: number) => void;
     onCameraFollowToggle: () => void;
+    onToggleDefense: () => void;
 }
 
-function HUD({ currentPoint, currentFrame, totalFrames, isPlaying, speed, hasCollided, cameraFollow, onPlayPause, onReset, onSpeedChange, onFrameChange, onCameraFollowToggle }: HUDProps) {
+function HUD({ currentPoint, currentFrame, totalFrames, isPlaying, speed, hasCollided, cameraFollow, isDefenseMode, defenseData, onPlayPause, onReset, onSpeedChange, onFrameChange, onCameraFollowToggle, onToggleDefense }: HUDProps) {
     const [hudPosition, setHudPosition] = useState({ x: 0, y: 0 });
     const [isDragging, setIsDragging] = useState(false);
     const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
@@ -288,42 +450,95 @@ function HUD({ currentPoint, currentFrame, totalFrames, isPlaying, speed, hasCol
             >
                 {/* Real-time data overlay - Top Right */}
                 {currentPoint && (
-                    <div
-                        className="ml-auto bg-black/70 backdrop-blur-sm rounded-lg p-4 border border-white/20 max-w-xs pointer-events-auto"
-                    >
-                        <h3 className="font-bold mb-2 text-sm">Datos en Tiempo Real</h3>
-                        <div className="space-y-2 text-xs">
+                    <div className="ml-auto space-y-2 pointer-events-auto">
+                        {/* Botón de modo defensa */}
+                        <Button
+                            onClick={onToggleDefense}
+                            variant={isDefenseMode ? "default" : "outline"}
+                            size="sm"
+                            className={isDefenseMode ? "bg-blue-600 hover:bg-blue-700 w-full" : "w-full"}
+                        >
+                            {isDefenseMode ? (
+                                <>
+                                    <Shield className="w-4 h-4 mr-2" />
+                                    Modo Defensa Activo
+                                </>
+                            ) : (
+                                <>
+                                    <Shield className="w-4 h-4 mr-2" />
+                                    Activar Defensa
+                                </>
+                            )}
+                        </Button>
+                        
+                        <div className="bg-black/70 backdrop-blur-sm rounded-lg p-4 border border-white/20 max-w-xs">
+                            <h3 className="font-bold mb-2 text-sm flex items-center gap-2">
+                                {isDefenseMode ? (
+                                    <>
+                                        <span className="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span>
+                                        Sistema de Defensa
+                                    </>
+                                ) : (
+                                    'Datos en Tiempo Real'
+                                )}
+                            </h3>
+                            <div className="space-y-2 text-xs">
                             <div className="flex justify-between">
                                 <span className="text-gray-300">Tiempo:</span>
-                                <span className="font-mono">{(currentPoint.time_sec / 86400).toFixed(2)} días</span>
+                                <span className="font-mono">{(currentPoint.t / 86400).toFixed(2)} días</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-gray-300">Posición X:</span>
-                                <span className="font-mono">{(currentPoint.x_m / 1e6).toFixed(2)} Mm</span>
+                                <span className="font-mono">{(currentPoint.x / 1e6).toFixed(2)} Mm</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-gray-300">Posición Y:</span>
-                                <span className="font-mono">{(currentPoint.y_m / 1e6).toFixed(2)} Mm</span>
+                                <span className="font-mono">{(currentPoint.y / 1e6).toFixed(2)} Mm</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-gray-300">Posición Z:</span>
-                                <span className="font-mono">{(currentPoint.z_m / 1e6).toFixed(2)} Mm</span>
+                                <span className="font-mono">{(currentPoint.z / 1e6).toFixed(2)} Mm</span>
                             </div>
                             <div className="flex justify-between">
                                 <span className="text-gray-300">Distancia:</span>
-                                <span className="font-mono">{(currentPoint.r_m / 1000).toFixed(0)} km</span>
+                                <span className="font-mono">{(Math.sqrt(currentPoint.x**2 + currentPoint.y**2 + currentPoint.z**2) / 1000).toFixed(0)} km</span>
                             </div>
-                            {currentPoint.vx_m_s !== undefined && (
+                            {currentPoint.vx !== undefined && (
                                 <div className="flex justify-between">
                                     <span className="text-gray-300">Velocidad:</span>
                                     <span className="font-mono">
                                         {(Math.sqrt(
-                                            Math.pow(currentPoint.vx_m_s, 2) +
-                                            Math.pow(currentPoint.vy_m_s || 0, 2) +
-                                            Math.pow(currentPoint.vz_m_s || 0, 2)
+                                            Math.pow(currentPoint.vx, 2) +
+                                            Math.pow(currentPoint.vy || 0, 2) +
+                                            Math.pow(currentPoint.vz || 0, 2)
                                         ) / 1000).toFixed(2)} km/s
                                     </span>
                                 </div>
+                            )}
+                            
+                            {/* Información de defensa */}
+                            {isDefenseMode && defenseData && (
+                                <>
+                                    <div className="border-t border-white/20 my-2"></div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-300">Cohete:</span>
+                                        <span className="font-mono text-blue-400">
+                                            {defenseData.rocket?.trajectory?.length || 0} puntos
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-300">Satélites:</span>
+                                        <span className="font-mono text-green-400">
+                                            {defenseData.satellites?.length || 0}
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span className="text-gray-300">Estado:</span>
+                                        <span className={`font-mono ${defenseData.metadata?.has_collided ? 'text-green-400' : 'text-yellow-400'}`}>
+                                            {defenseData.metadata?.has_collided ? 'Destruido' : 'En Proceso'}
+                                        </span>
+                                    </div>
+                                </>
                             )}
                         </div>
                         <div className="mt-3 pt-3 border-t border-white/20">
@@ -340,6 +555,7 @@ function HUD({ currentPoint, currentFrame, totalFrames, isPlaying, speed, hasCol
                                 {cameraFollow ? 'Siguiendo meteorito' : 'Seguir meteorito'}
                             </button>
                         </div>
+                        </div>
                     </div>
                 )}
 
@@ -355,7 +571,7 @@ function HUD({ currentPoint, currentFrame, totalFrames, isPlaying, speed, hasCol
                         >
                             Controles de Simulación
                         </div>
-                        <div className="flex gap-3 items-center mb-4">
+                        <div className="flex gap-3 items-center mb-4 flex-wrap">
                             <Button
                                 onClick={onPlayPause}
                                 size="sm"
@@ -383,7 +599,46 @@ function HUD({ currentPoint, currentFrame, totalFrames, isPlaying, speed, hasCol
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                 </svg>
                             </Button>
+                            <Button
+                                onClick={onToggleDefense}
+                                variant={isDefenseMode ? 'destructive' : 'secondary'}
+                                size="sm"
+                                className="flex items-center gap-2"
+                            >
+                                <Shield className="w-4 h-4" />
+                                {isDefenseMode ? 'Modo Normal' : 'Modo Defensa'}
+                            </Button>
                         </div>
+
+                        {/* Defense mode info */}
+                        {isDefenseMode && defenseData && (
+                            <div className="mb-4 p-3 bg-blue-500/20 border border-blue-500/50 rounded-lg">
+                                <div className="flex items-center gap-2 mb-2">
+                                    <Shield className="w-4 h-4 text-blue-400" />
+                                    <h4 className="text-sm font-semibold text-blue-400">Sistema de Defensa Activo</h4>
+                                </div>
+                                <div className="space-y-1 text-xs text-gray-300">
+                                    <div className="flex justify-between">
+                                        <span>Cohete:</span>
+                                        <span className="text-blue-400 font-mono">
+                                            {defenseData.rocket_trajectory?.length || 0} puntos
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Satélites:</span>
+                                        <span className="text-green-400 font-mono">
+                                            {defenseData.satellite_trajectories?.length || 0} unidades
+                                        </span>
+                                    </div>
+                                    <div className="flex justify-between">
+                                        <span>Estado:</span>
+                                        <Badge variant={defenseData.metadata?.destroyed ? 'default' : 'destructive'} className="text-xs">
+                                            {defenseData.metadata?.destroyed ? 'Éxito' : 'Fallo'}
+                                        </Badge>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         <div className="space-y-3">
                             <div>
@@ -436,6 +691,10 @@ export default function Simulacion3D() {
     const [cameraFollow, setCameraFollow] = useState(false);
     const [showImpactModal, setShowImpactModal] = useState(false);
     const [enableAsteroidCollision, setEnableAsteroidCollision] = useState(false);
+    
+    // Defense mode states
+    const [isDefenseMode, setIsDefenseMode] = useState(false);
+    const [defenseData, setDefenseData] = useState<any>(null);
     const animationRef = useRef<number | undefined>(undefined);
 
     const handleCollision = () => {
@@ -464,27 +723,59 @@ export default function Simulacion3D() {
 
     useEffect(() => {
         setIsLoading(true);
-        fetch('/keppler-data-3d')
+        const endpoint = isDefenseMode ? '/defensa-datos-3d' : '/keppler-data-3d';
+        
+        fetch(endpoint)
             .then((response) => response.json())
-            .then((apiResponse: KeplerAPIResponse) => {
+            .then((apiResponse: any) => {
                 console.log('API Response:', apiResponse);
-                console.log('Data length:', apiResponse.data?.length);
 
-                if (apiResponse.data && apiResponse.data.length > 0) {
-                    setOrbitData(apiResponse.data);
-                    setMetadata(apiResponse.metadata);
-                    console.log('Orbit data set with', apiResponse.data.length, 'points');
+                if (isDefenseMode) {
+                    // Defense mode data structure
+                    setDefenseData(apiResponse);
+                    
+                    // Transform meteor trajectory data from x_m/y_m/z_m/time_sec to x/y/z/t format
+                    const transformedMeteorData = apiResponse.data?.map((point: any) => ({
+                        x: point.x_m,
+                        y: point.y_m,
+                        z: point.z_m,
+                        t: point.time_sec,
+                        vx: point.vx_m_s,
+                        vy: point.vy_m_s,
+                        vz: point.vz_m_s
+                    })) || [];
+                    
+                    setOrbitData(transformedMeteorData);
+                    setMetadata(apiResponse.metadata || {});
+                    console.log('Defense data loaded:', apiResponse);
+                    console.log('Transformed meteor trajectory points:', transformedMeteorData.length);
+                    console.log('Rocket trajectory points:', apiResponse.rocket?.trajectory?.length || 0);
+                    console.log('Satellites:', apiResponse.satellites?.length || 0);
+                    
+                    // Auto-start animation in defense mode
+                    if (transformedMeteorData.length > 0) {
+                        setIsPlaying(true);
+                    }
                 } else {
-                    console.error('No data received from API');
+                    // Standard mode data structure
+                    console.log('Data length:', apiResponse.data?.length);
+                    if (apiResponse.data && apiResponse.data.length > 0) {
+                        setOrbitData(apiResponse.data);
+                        setMetadata(apiResponse.metadata);
+                        setDefenseData(null);
+                        console.log('Orbit data set with', apiResponse.data.length, 'points');
+                    } else {
+                        console.error('No data received from API');
+                    }
                 }
             })
             .catch(error => {
-                console.error('Error loading Kepler 3D data:', error);
+                console.error('Error loading data:', error);
             })
             .finally(() => {
                 setIsLoading(false);
             });
-    }, []);
+    }, [isDefenseMode]);
 
     useEffect(() => {
         if (isPlaying && orbitData.length > 0) {
@@ -530,6 +821,16 @@ export default function Simulacion3D() {
         setEnableAsteroidCollision(false);
     };
 
+    const handleToggleDefense = () => {
+        setIsDefenseMode(!isDefenseMode);
+        setCurrentFrame(0);
+        setIsPlaying(false);
+        setHasCollided(false);
+        setDebrisPositions([]);
+        setShowImpactModal(false);
+        setEnableAsteroidCollision(false);
+    };
+
     // Called by Earth sensor when the asteroid is within proximity
     const handleAsteroidNear = () => {
         if (!enableAsteroidCollision) {
@@ -540,7 +841,7 @@ export default function Simulacion3D() {
 
     const currentPoint = orbitData.length > 0 ? orbitData[currentFrame] : null;
     const asteroidPosition: [number, number, number] = currentPoint
-        ? [(currentPoint.x_m / 1e7) * 50, (currentPoint.y_m / 1e7) * 50, (currentPoint.z_m / 1e7) * 50]
+        ? [(currentPoint.x / 1e7) * 50, (currentPoint.y / 1e7) * 50, (currentPoint.z / 1e7) * 50]
         : [500, 0, 0];
 
     return (
@@ -568,6 +869,43 @@ export default function Simulacion3D() {
 
                                     {orbitData.length > 0 && (
                                         <OrbitPath points={orbitData} />
+                                    )}
+
+                                    {/* Defense mode visualizations */}
+                                    {isDefenseMode && defenseData && (
+                                        <>
+                                            {defenseData.rocket?.trajectory && (
+                                                <RocketTrajectory 
+                                                    points={defenseData.rocket.trajectory}
+                                                    currentTime={currentPoint?.t || 0}
+                                                    launchTime={defenseData.rocket.launch_timestamp || 0}
+                                                />
+                                            )}
+                                            
+                                            {defenseData.satellites && defenseData.satellites.map((sat: any) => (
+                                                <SatelliteTrajectory
+                                                    key={sat.id}
+                                                    satellite={sat}
+                                                    currentTime={currentPoint?.t || 0}
+                                                />
+                                            ))}
+
+                                            {defenseData.satellites && defenseData.satellites.map((sat: any) => {
+                                                const lastPos = sat.trajectory[sat.trajectory.length - 1];
+                                                return lastPos && currentPoint && currentPoint.t >= sat.detonation_timestamp ? (
+                                                    <Explosion
+                                                        key={`explosion-${sat.id}`}
+                                                        position={[
+                                                            (lastPos.x / 1e7) * 50,
+                                                            (lastPos.y / 1e7) * 50,
+                                                            (lastPos.z / 1e7) * 50
+                                                        ]}
+                                                        startTime={sat.detonation_timestamp}
+                                                        currentTime={currentPoint.t}
+                                                    />
+                                                ) : null;
+                                            })}
+                                        </>
                                     )}
 
                                     <Physics gravity={[0, 0, 0]}>
@@ -599,6 +937,8 @@ export default function Simulacion3D() {
                                         speed={speed}
                                         hasCollided={hasCollided}
                                         cameraFollow={cameraFollow}
+                                        isDefenseMode={isDefenseMode}
+                                        defenseData={defenseData}
                                         onPlayPause={handlePlayPause}
                                         onReset={handleReset}
                                         onSpeedChange={setSpeed}
@@ -607,6 +947,7 @@ export default function Simulacion3D() {
                                             setIsPlaying(false);
                                         }}
                                         onCameraFollowToggle={() => setCameraFollow(!cameraFollow)}
+                                        onToggleDefense={handleToggleDefense}
                                     />
 
                                     <OrbitControls
@@ -630,12 +971,46 @@ export default function Simulacion3D() {
                 <Dialog open={showImpactModal} onOpenChange={setShowImpactModal}>
                     <DialogContent className="sm:max-w-md">
                         <DialogHeader>
-                            <DialogTitle className="text-2xl font-bold text-red-600">⚠️ Impacto Detectado</DialogTitle>
-                            <DialogDescription className="text-base pt-4">
-                                El meteorito ha impactado con la Tierra. La colisión ha generado fragmentos que se dispersan por el espacio.
-                                <br /><br />
-                                <span className="font-semibold">Este evento representa una amenaza significativa para el planeta.</span>
-                            </DialogDescription>
+                            {isDefenseMode && defenseData ? (
+                                defenseData.metadata?.destroyed ? (
+                                    <>
+                                        <DialogTitle className="text-2xl font-bold text-green-600 flex items-center gap-2">
+                                            <Shield className="w-6 h-6" />
+                                            Defensa Exitosa
+                                        </DialogTitle>
+                                        <DialogDescription className="text-base pt-4">
+                                            El sistema de defensa ha destruido exitosamente el asteroide amenazante.
+                                            <br /><br />
+                                            Los satélites interceptores detonaron en el momento preciso, fragmentando el objeto y desviando los escombros de una trayectoria de colisión directa con la Tierra.
+                                            <br /><br />
+                                            <span className="font-semibold text-green-600">¡El planeta está a salvo!</span>
+                                        </DialogDescription>
+                                    </>
+                                ) : (
+                                    <>
+                                        <DialogTitle className="text-2xl font-bold text-red-600 flex items-center gap-2">
+                                            <AlertTriangle className="w-6 h-6" />
+                                            Defensa Fallida
+                                        </DialogTitle>
+                                        <DialogDescription className="text-base pt-4">
+                                            El sistema de defensa no logró detener el asteroide.
+                                            <br /><br />
+                                            A pesar de los esfuerzos, el objeto continuó su trayectoria y ha impactado con la Tierra, generando fragmentos que se dispersan por el espacio.
+                                            <br /><br />
+                                            <span className="font-semibold text-red-600">Este evento representa una amenaza significativa para el planeta.</span>
+                                        </DialogDescription>
+                                    </>
+                                )
+                            ) : (
+                                <>
+                                    <DialogTitle className="text-2xl font-bold text-red-600">⚠️ Impacto Detectado</DialogTitle>
+                                    <DialogDescription className="text-base pt-4">
+                                        El meteorito ha impactado con la Tierra. La colisión ha generado fragmentos que se dispersan por el espacio.
+                                        <br /><br />
+                                        <span className="font-semibold">Este evento representa una amenaza significativa para el planeta.</span>
+                                    </DialogDescription>
+                                </>
+                            )}
                         </DialogHeader>
                         <DialogFooter className="sm:justify-center">
                             <Button onClick={handleReset} className="w-full sm:w-auto">

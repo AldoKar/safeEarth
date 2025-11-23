@@ -63,7 +63,7 @@ class meteoriteController extends Controller
     }
 
     public function defensaDatos3D(){
-        $response = Http::timeout(10)->get("http://3.141.38.117/defensaDatos3D");
+        $response = Http::timeout(10)->get("http://3.141.38.117/DefensaDatos3D");
         if ($response->successful()) {
             $data = $response->json();
             return response()->json($data);
