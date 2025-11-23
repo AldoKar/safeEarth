@@ -16,6 +16,7 @@ npm install lucide-react
 
 npm i @react-three/rapier
 npx shadcn@latest add chart
+npx shadcn@latest add login-02
 
 npm install @react-three/fiber
 npm install @react-three/drei
