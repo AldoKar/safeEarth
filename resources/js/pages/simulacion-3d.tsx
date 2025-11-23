@@ -1,9 +1,9 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
-import { Canvas } from '@react-three/fiber';
+import { Canvas, useFrame } from '@react-three/fiber';
 import { OrbitControls, Stars, useGLTF } from '@react-three/drei';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -19,6 +19,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 
 function AsteroidModel() {
     const gltf = useGLTF('/models/asteroid.gltf');
+    const meshRef = useRef<THREE.Group>(null);
 
     useEffect(() => {
         gltf.scene.traverse((child) => {
@@ -36,7 +37,13 @@ function AsteroidModel() {
         });
     }, [gltf]);
 
-    return <primitive object={gltf.scene} scale={0.025} />;
+    useFrame(() => {
+        if (meshRef.current) {
+            meshRef.current.rotation.y += 0.005;
+        }
+    });
+
+    return <primitive ref={meshRef} object={gltf.scene} scale={0.025} />;
 }
 
 export default function Simulacion3D() {
@@ -53,7 +60,7 @@ export default function Simulacion3D() {
 
                             <Stars />
                            
-                            <directionalLight position={[10, 10, 5]} intensity={.2} />
+                            <directionalLight position={[10, 10, 5]} intensity={.6} />
                             <pointLight position={[-10, -10, -5]} intensity={10} />
                             <AsteroidModel />
                             <OrbitControls 

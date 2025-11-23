@@ -104,16 +104,15 @@ export default function ModelosDefensa() {
                                             </mesh>
                                         }>
                                             {/* Improved lighting setup */}
-                                            <ambientLight intensity={1} />
+                                            <ambientLight intensity={1.5} />
                                             <directionalLight position={[5, 5, 5]} intensity={2} />
-                                            <directionalLight position={[-5, -5, -5]} intensity={1} />
-                                            <pointLight position={[0, 10, 0]} intensity={1.5} />
+                                            <pointLight position={[-5, -5, -5]} intensity={1} />
                                     
-                                            <gridHelper args={[10, 10]} position={[0, -2, 0]} />                
                                             <SpaceshipModel 
                                                 modelPath={model.modelPath}
-                                                scale={1}
+                                                scale={1.5}
                                                 position={[0, 0, 0]}
+                                                rotate={true}
                                             />
                                             
                                             <OrbitControls 
