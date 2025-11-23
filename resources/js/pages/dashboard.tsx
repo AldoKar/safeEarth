@@ -26,7 +26,7 @@ export default function Dashboard() {
             <Head title="Dashboard" />
             <div className="flex h-full flex-1 gap-4 p-4">
                 {/* Welcome Box */}
-                <div className="relative w-80 overflow-hidden rounded-xl border border-sidebar-border/70 bg-blue-900 dark:border-sidebar-border p-8 flex items-center justify-center">
+                <div className="relative w-80 overflow-hidden rounded-xl border border-sidebar-border/70 dark:bg-gray-900 dark:border-sidebar-border p-8 flex items-center justify-center">
                     <div className="text-center">
                         <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
                             Bienvenido, {auth.user.name}
