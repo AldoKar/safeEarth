@@ -515,31 +515,7 @@ function HUD({ currentPoint, currentFrame, totalFrames, isPlaying, speed, hasCol
                                     </span>
                                 </div>
                             )}
-                            
-                            {/* Información de defensa */}
-                            {isDefenseMode && defenseData && (
-                                <>
-                                    <div className="border-t border-white/20 my-2"></div>
-                                    <div className="flex justify-between">
-                                        <span className="text-gray-300">Cohete:</span>
-                                        <span className="font-mono text-blue-400">
-                                            {defenseData.rocket?.trajectory?.length || 0} puntos
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-gray-300">Satélites:</span>
-                                        <span className="font-mono text-green-400">
-                                            {defenseData.satellites?.length || 0}
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span className="text-gray-300">Estado:</span>
-                                        <span className={`font-mono ${defenseData.metadata?.has_collided ? 'text-green-400' : 'text-yellow-400'}`}>
-                                            {defenseData.metadata?.has_collided ? 'Destruido' : 'En Proceso'}
-                                        </span>
-                                    </div>
-                                </>
-                            )}
+                        
                         </div>
                         <div className="mt-3 pt-3 border-t border-white/20">
                             <button
@@ -599,46 +575,7 @@ function HUD({ currentPoint, currentFrame, totalFrames, isPlaying, speed, hasCol
                                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
                                 </svg>
                             </Button>
-                            <Button
-                                onClick={onToggleDefense}
-                                variant={isDefenseMode ? 'destructive' : 'secondary'}
-                                size="sm"
-                                className="flex items-center gap-2"
-                            >
-                                <Shield className="w-4 h-4" />
-                                {isDefenseMode ? 'Modo Normal' : 'Modo Defensa'}
-                            </Button>
                         </div>
-
-                        {/* Defense mode info */}
-                        {isDefenseMode && defenseData && (
-                            <div className="mb-4 p-3 bg-blue-500/20 border border-blue-500/50 rounded-lg">
-                                <div className="flex items-center gap-2 mb-2">
-                                    <Shield className="w-4 h-4 text-blue-400" />
-                                    <h4 className="text-sm font-semibold text-blue-400">Sistema de Defensa Activo</h4>
-                                </div>
-                                <div className="space-y-1 text-xs text-gray-300">
-                                    <div className="flex justify-between">
-                                        <span>Cohete:</span>
-                                        <span className="text-blue-400 font-mono">
-                                            {defenseData.rocket_trajectory?.length || 0} puntos
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span>Satélites:</span>
-                                        <span className="text-green-400 font-mono">
-                                            {defenseData.satellite_trajectories?.length || 0} unidades
-                                        </span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span>Estado:</span>
-                                        <Badge variant={defenseData.metadata?.destroyed ? 'default' : 'destructive'} className="text-xs">
-                                            {defenseData.metadata?.destroyed ? 'Éxito' : 'Fallo'}
-                                        </Badge>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
 
                         <div className="space-y-3">
                             <div>
@@ -760,10 +697,20 @@ export default function Simulacion3D() {
                     // Standard mode data structure
                     console.log('Data length:', apiResponse.data?.length);
                     if (apiResponse.data && apiResponse.data.length > 0) {
-                        setOrbitData(apiResponse.data);
+                        // Transform standard mode data from x_m/y_m/z_m/time_sec to x/y/z/t format
+                        const transformedData = apiResponse.data.map((point: any) => ({
+                            x: point.x_m,
+                            y: point.y_m,
+                            z: point.z_m,
+                            t: point.time_sec,
+                            vx: point.vx_m_s,
+                            vy: point.vy_m_s,
+                            vz: point.vz_m_s
+                        }));
+                        setOrbitData(transformedData);
                         setMetadata(apiResponse.metadata);
                         setDefenseData(null);
-                        console.log('Orbit data set with', apiResponse.data.length, 'points');
+                        console.log('Orbit data set with', transformedData.length, 'points');
                     } else {
                         console.error('No data received from API');
                     }
@@ -807,6 +754,13 @@ export default function Simulacion3D() {
             }
         };
     }, [isPlaying, orbitData, speed]);
+
+    // Force impact on last frame (only in non-defense mode)
+    useEffect(() => {
+        if (!isDefenseMode && orbitData.length > 0 && currentFrame === orbitData.length - 1 && !hasCollided) {
+            handleCollision();
+        }
+    }, [currentFrame, orbitData, hasCollided, isDefenseMode]);
 
     const handlePlayPause = () => {
         setIsPlaying(!isPlaying);
@@ -1003,7 +957,7 @@ export default function Simulacion3D() {
                                 )
                             ) : (
                                 <>
-                                    <DialogTitle className="text-2xl font-bold text-red-600">⚠️ Impacto Detectado</DialogTitle>
+                                    <DialogTitle className="text-2xl font-bold text-red-600">Impacto Detectado</DialogTitle>
                                     <DialogDescription className="text-base pt-4">
                                         El meteorito ha impactado con la Tierra. La colisión ha generado fragmentos que se dispersan por el espacio.
                                         <br /><br />

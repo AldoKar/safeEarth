@@ -92,19 +92,42 @@ export default function Graficas() {
     const [meteoriteData, setMeteoriteData] = useState<MeteoriteData | null>(
         null,
     );
+    const [orbitData, setOrbitData] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        fetch('/meteorites')
-            .then((response) => {
+        Promise.all([
+            fetch('/meteorites').then((response) => {
                 if (!response.ok) {
-                    throw new Error('Error al cargar los datos');
+                    throw new Error('Error al cargar los datos del meteorito');
+                }
+                return response.json();
+            }),
+            fetch('/keppler-data-3d').then((response) => {
+                if (!response.ok) {
+                    throw new Error('Error al cargar los datos orbitales');
                 }
                 return response.json();
             })
-            .then((data) => {
-                setMeteoriteData(data);
+        ])
+            .then(([meteoriteData, orbitResponse]) => {
+                setMeteoriteData(meteoriteData);
+                
+                // Transform orbit data to include velocities
+                const transformedData = orbitResponse.data?.map((point: any) => ({
+                    t: point.time_sec,
+                    vx: point.vx_m_s / 1000, // Convert to km/s
+                    vy: point.vy_m_s / 1000,
+                    vz: point.vz_m_s / 1000,
+                    v_total: Math.sqrt(
+                        Math.pow(point.vx_m_s, 2) + 
+                        Math.pow(point.vy_m_s, 2) + 
+                        Math.pow(point.vz_m_s, 2)
+                    ) / 1000
+                })) || [];
+                
+                setOrbitData(transformedData);
                 setLoading(false);
             })
             .catch((err) => {
@@ -181,24 +204,16 @@ export default function Graficas() {
                                         Potencialmente Peligroso
                                     </Badge>
                                 )}
-                                <Link href="/apocalypse-story">
-                                    <Button 
-                                        variant="destructive" 
-                                        size="lg"
-                                        className="font-bold text-lg px-6 animate-pulse hover:scale-105 transition-transform shadow-[0_0_20px_rgba(255,0,0,0.5)]"
-                                    >
-                                        🚨 ALERTA PLANETARIA
-                                    </Button>
-                                </Link>
+                                
                             </div>
                         </div>
                     </CardHeader>
                 </Card>
 
                 <ResizablePanelGroup direction="horizontal" className="flex-1 gap-4">
-                    <ResizablePanel defaultSize={0} minSize={0}>
-                        <div className="h-full overflow-auto pr-2">
-                            <div className="space-y-4">
+                    <ResizablePanel defaultSize={0} minSize={0} >
+                        <div className="h-full overflow-auto pr-2 p-4">
+                            <div className="grid grid-cols-2 gap-4">
                                 {/* Gráfica de Diámetro Estimado */}
                                 <Card>
                                     <CardHeader>
@@ -350,59 +365,6 @@ export default function Graficas() {
                                     </CardContent>
                                 </Card>
 
-                                {/* Gráfica Radial de Peligrosidad */}
-                                <Card>
-                                    <CardHeader>
-                                        <CardTitle>Nivel de Peligrosidad</CardTitle>
-                                        <CardDescription>
-                                            Indicador visual de amenaza
-                                        </CardDescription>
-                                    </CardHeader>
-                                    <CardContent>
-                                        <ChartContainer
-                                            config={{
-                                                hazard: {
-                                                    label: "Peligrosidad",
-                                                    color: meteoriteData.is_potentially_hazardous_asteroid 
-                                                        ? "hsl(var(--destructive))" 
-                                                        : "#1e40af",
-                                                },
-                                            }}
-                                            className="h-[250px]"
-                                        >
-                                            <RadialBarChart
-                                                data={[
-                                                    {
-                                                        name: "Peligro",
-                                                        value: meteoriteData.is_potentially_hazardous_asteroid ? 85 : 25,
-                                                        fill: meteoriteData.is_potentially_hazardous_asteroid 
-                                                            ? "hsl(var(--destructive))" 
-                                                            : "#1e40af",
-                                                    },
-                                                ]}
-                                                innerRadius="60%"
-                                                outerRadius="100%"
-                                                startAngle={90}
-                                                endAngle={450}
-                                            >
-                                                <PolarGrid gridType="circle" />
-                                                <RadialBar dataKey="value" cornerRadius={10} />
-                                                <PolarRadiusAxis tick={false} axisLine={false}>
-                                                    <text
-                                                        x="50%"
-                                                        y="50%"
-                                                        textAnchor="middle"
-                                                        dominantBaseline="middle"
-                                                        className="fill-foreground text-3xl font-bold"
-                                                    >
-                                                        {meteoriteData.is_potentially_hazardous_asteroid ? "ALTO" : "BAJO"}
-                                                    </text>
-                                                </PolarRadiusAxis>
-                                            </RadialBarChart>
-                                        </ChartContainer>
-                                    </CardContent>
-                                </Card>
-
                                 {/* Gráfica de Distancia de Acercamiento */}
                                 <Card>
                                     <CardHeader>
@@ -452,15 +414,177 @@ export default function Graficas() {
                                         </ChartContainer>
                                     </CardContent>
                                 </Card>
+
+                                {/* Gráficas de Velocidad */}
+                                {orbitData.length > 0 && (
+                                    <>
+                                        <Card>
+                                            <CardHeader>
+                                                <CardTitle>Velocidad en X vs Tiempo</CardTitle>
+                                            <CardDescription>
+                                                Componente X de la velocidad (km/s) a lo largo del tiempo
+                                            </CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <ChartContainer
+                                                config={{
+                                                    vx: {
+                                                        label: "Velocidad X",
+                                                        color: "blue",
+                                                    },
+                                                }}
+                                                className="h-[300px]"
+                                            >
+                                                <LineChart data={orbitData}>
+                                                    <CartesianGrid strokeDasharray="3 3" />
+                                                    <XAxis 
+                                                        dataKey="t" 
+                                                        label={{ value: 'Tiempo (s)', position: 'insideBottom', offset: -5 }}
+                                                    />
+                                                    <YAxis 
+                                                        label={{ value: 'Velocidad X (km/s)', angle: -90, position: 'insideLeft' }}
+                                                    />
+                                                    <ChartTooltip content={<ChartTooltipContent />} />
+                                                    <Line 
+                                                        type="monotone" 
+                                                        dataKey="vx" 
+                                                        stroke="var(--color-vx)" 
+                                                        strokeWidth={2}
+                                                        dot={false}
+                                                    />
+                                                </LineChart>
+                                            </ChartContainer>
+                                        </CardContent>
+                                    </Card>
+
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle>Velocidad en Y vs Tiempo</CardTitle>
+                                            <CardDescription>
+                                                Componente Y de la velocidad (km/s) a lo largo del tiempo
+                                            </CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <ChartContainer
+                                                config={{
+                                                    vy: {
+                                                        label: "Velocidad Y",
+                                                        color: "blue",
+                                                    },
+                                                }}
+                                                className="h-[300px]"
+                                            >
+                                                <LineChart data={orbitData}>
+                                                    <CartesianGrid strokeDasharray="3 3" />
+                                                    <XAxis 
+                                                        dataKey="t" 
+                                                        label={{ value: 'Tiempo (s)', position: 'insideBottom', offset: -5 }}
+                                                    />
+                                                    <YAxis 
+                                                        label={{ value: 'Velocidad Y (km/s)', angle: -90, position: 'insideLeft' }}
+                                                    />
+                                                    <ChartTooltip content={<ChartTooltipContent />} />
+                                                    <Line 
+                                                        type="monotone" 
+                                                        dataKey="vy" 
+                                                        stroke="var(--color-vy)" 
+                                                        strokeWidth={2}
+                                                        dot={false}
+                                                    />
+                                                </LineChart>
+                                            </ChartContainer>
+                                        </CardContent>
+                                    </Card>
+
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle>Velocidad en Z vs Tiempo</CardTitle>
+                                            <CardDescription>
+                                                Componente Z de la velocidad (km/s) a lo largo del tiempo
+                                            </CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <ChartContainer
+                                                config={{
+                                                    vz: {
+                                                        label: "Velocidad Z",
+                                                        color: "blue",
+                                                    },
+                                                }}
+                                                className="h-[300px]"
+                                            >
+                                                <LineChart data={orbitData}>
+                                                    <CartesianGrid strokeDasharray="3 3" />
+                                                    <XAxis 
+                                                        dataKey="t" 
+                                                        label={{ value: 'Tiempo (s)', position: 'insideBottom', offset: -5 }}
+                                                    />
+                                                    <YAxis 
+                                                        label={{ value: 'Velocidad Z (km/s)', angle: -90, position: 'insideLeft' }}
+                                                    />
+                                                    <ChartTooltip content={<ChartTooltipContent />} />
+                                                    <Line 
+                                                        type="monotone" 
+                                                        dataKey="vz" 
+                                                        stroke="var(--color-vz)" 
+                                                        strokeWidth={2}
+                                                        dot={false}
+                                                    />
+                                                </LineChart>
+                                            </ChartContainer>
+                                        </CardContent>
+                                    </Card>
+
+                                    <Card>
+                                        <CardHeader>
+                                            <CardTitle>Velocidad Total vs Tiempo</CardTitle>
+                                            <CardDescription>
+                                                Magnitud total de la velocidad (km/s) a lo largo del tiempo
+                                            </CardDescription>
+                                        </CardHeader>
+                                        <CardContent>
+                                            <ChartContainer
+                                                config={{
+                                                    v_total: {
+                                                        label: "Velocidad Total",
+                                                        color: "blue",
+                                                    },
+                                                }}
+                                                className="h-[300px]"
+                                            >
+                                                <LineChart data={orbitData}>
+                                                    <CartesianGrid strokeDasharray="3 3" />
+                                                    <XAxis 
+                                                        dataKey="t" 
+                                                        label={{ value: 'Tiempo (s)', position: 'insideBottom', offset: -5 }}
+                                                    />
+                                                    <YAxis 
+                                                        label={{ value: 'Velocidad Total (km/s)', angle: -90, position: 'insideLeft' }}
+                                                    />
+                                                    <ChartTooltip content={<ChartTooltipContent />} />
+                                                    <Line 
+                                                        type="monotone" 
+                                                        dataKey="v_total" 
+                                                        stroke="var(--color-v_total)" 
+                                                        strokeWidth={2}
+                                                        dot={false}
+                                                    />
+                                                </LineChart>
+                                            </ChartContainer>
+                                        </CardContent>
+                                    </Card>
+                                </>
+                            )}
                             </div>
                         </div>
+                        
                     </ResizablePanel>
                     
                     <ResizableHandle className='bg-blue-800 w-1' withHandle />
                     
                     <ResizablePanel defaultSize={100} minSize={0}>
                         <div className="h-full overflow-auto pl-2">
-                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <div className="space-y-4">
                         <Card>
                             <CardHeader>
