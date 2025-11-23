@@ -1,5 +1,6 @@
 import { useGLTF } from '@react-three/drei';
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
 import * as THREE from 'three';
 
 interface SpaceshipModelProps {
@@ -7,15 +8,18 @@ interface SpaceshipModelProps {
     scale?: number;
     rotation?: [number, number, number];
     position?: [number, number, number];
+    rotate?: boolean;
 }
 
 export default function SpaceshipModel({ 
     modelPath, 
     scale = 1, 
     rotation = [0, 0, 0],
-    position = [0, 0, 0]
+    position = [0, 0, 0],
+    rotate = false
 }: SpaceshipModelProps) {
     const gltf = useGLTF(modelPath);
+    const meshRef = useRef<THREE.Group>(null);
 
     useEffect(() => {
         // Fix missing textures by applying a default material
@@ -48,8 +52,14 @@ export default function SpaceshipModel({
         });
     }, [gltf.scene]);
 
+    useFrame(() => {
+        if (rotate && meshRef.current) {
+            meshRef.current.rotation.y += 0.005;
+        }
+    });
+
     return (
-        <group scale={scale} rotation={rotation} position={position}>
+        <group ref={meshRef} scale={scale} rotation={rotation} position={position}>
             <primitive object={gltf.scene} />
         </group>
     );
