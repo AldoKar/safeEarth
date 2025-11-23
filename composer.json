@@ -10,7 +10,6 @@
     "license": "MIT",
     "require": {
         "php": "^8.2",
-        "google-gemini-php/client": "^2.7",
         "guzzlehttp/guzzle": "^7.10",
         "inertiajs/inertia-laravel": "^2.0",
         "laravel/fortify": "^1.30",

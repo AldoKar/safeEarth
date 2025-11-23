@@ -1,4 +1,4 @@
-# 🌍 SafeEarth - Planetary Defense Simulation System
+# SafeEarth - Planetary Defense Simulation System
 
 A sophisticated web-based simulation system for modeling asteroid trajectories and planetary defense mechanisms using Kepler's orbital mechanics.
 
@@ -11,7 +11,7 @@ A sophisticated web-based simulation system for modeling asteroid trajectories a
 
 SafeEarth is an interactive platform that simulates asteroid trajectories and defense systems in both 2D and 3D environments. The system uses real Keplerian orbital mechanics to accurately model celestial body movements and defense interception scenarios.
 
-## 📸 Screenshots
+## Screenshots
 
 ### Login & Authentication
 ![Login Screen](docs/screenshots/login.png)
@@ -143,7 +143,7 @@ The Kepler orbital calculations and defense simulations are powered by a separat
 - `/DefensaDatos3D` - 3D defense simulation data
 ---
 
-## ☁️ Live Deployment
+## Live Deployment
 
 The entire **SafeEarth** application is deployed on **AWS EC2** infrastructure, providing a production-ready environment with:
 
@@ -152,7 +152,7 @@ The entire **SafeEarth** application is deployed on **AWS EC2** infrastructure, 
 - **Python Microservice** - FastAPI calculations server
 - **Load Balancing & Security** - AWS networking and security groups
 
-**🌐 Live Application**: [SafeEarth on AWS](http://3.141.38.117:8080/)
+**Live Application**: [SafeEarth on AWS](http://3.141.38.117:8080/)
 
 ---
 
@@ -260,4 +260,4 @@ Visit `http://localhost:8000`
 
 ---
 
-**Built with ❤️ for SAERO apocalypsis hackathon
+**Built for SAERO apocalypsis hackathon**
