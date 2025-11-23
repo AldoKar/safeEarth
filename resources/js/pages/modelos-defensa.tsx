@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Stars, PerspectiveCamera, Grid } from '@react-three/drei';
 import { Suspense } from 'react';
@@ -134,9 +134,11 @@ export default function ModelosDefensa() {
                                     <p className="text-gray-600 dark:text-gray-400 mb-4">
                                         {model.description}
                                     </p>
-                                    <Button className="w-full">
-                                        Usar en Simulación
-                                    </Button>
+                                    <Link href="/simulacion-3d">
+                                        <Button className="w-full">
+                                            Usar en Simulación
+                                        </Button>
+                                    </Link>
                                 </div>
                             </div>
                         );
