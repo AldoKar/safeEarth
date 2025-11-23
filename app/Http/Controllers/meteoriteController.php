@@ -43,23 +43,31 @@ class meteoriteController extends Controller
             if ($response->successful()) {
                 $data = $response->json();
 
-                // Log para debug
-                Log::info('Kepler 3D API response received', [
-                    'data_count' => count($data['data'] ?? []),
-                    'metadata' => $data['metadata'] ?? null
-                ]);
-
                 return response()->json($data);
             }
 
-            Log::warning('Kepler 3D API request failed', [
-                'status' => $response->status(),
-                'body' => $response->body()
-            ]);
         } catch (\Exception $e) {
             Log::error('Error fetching Kepler 3D data: ' . $e->getMessage());
         }
 
         return response()->json(['data' => [], 'metadata' => []]);
+    }
+
+    public function defensaDatos2D(){
+        $response = Http::timeout(10)->get("http://3.141.38.117/defensaDatos2D");
+        if ($response->successful()) {
+            $data = $response->json();
+            return response()->json($data);
+        }
+        return response()->json(['data' => []]);
+    }
+
+    public function defensaDatos3D(){
+        $response = Http::timeout(10)->get("http://3.141.38.117/defensaDatos3D");
+        if ($response->successful()) {
+            $data = $response->json();
+            return response()->json($data);
+        }
+        return response()->json(['data' => []]);
     }
 }

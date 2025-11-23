@@ -39,5 +39,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
 Route::get('meteorites', [meteoriteController::class, 'getMeteoriteData'])->name('meteorites');
 Route::get('keppler-data', [meteoriteController::class, 'getKepplerData'])->name('keppler-data');
 Route::get('keppler-data-3d', [meteoriteController::class, 'getKepplerData3D'])->name('keppler-data-3d');
+Route::get('defensa-datos-2d', [meteoriteController::class, 'defensaDatos2D'])->name('defensa-datos-2d');
+Route::get('defensa-datos-3d', [meteoriteController::class, 'defensaDatos3D'])->name('defensa-datos-3d');
 
 require __DIR__ . '/settings.php';
