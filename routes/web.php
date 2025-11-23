@@ -40,5 +40,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
 // rutas de los meteoritos
 Route::get('meteorites', [meteoriteController::class, 'getMeteoriteData'])->name('meteorites');
 Route::get('keppler-data', [meteoriteController::class, 'getKepplerData'])->name('keppler-data');
+Route::get('keppler-data-3d', [meteoriteController::class, 'getKepplerData3D'])->name('keppler-data-3d');
 
 require __DIR__ . '/settings.php';
