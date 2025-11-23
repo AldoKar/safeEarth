@@ -29,8 +29,8 @@ export default function SpaceshipModel({
                     const material = mesh.material as THREE.MeshStandardMaterial;
                     material.metalness = 0.1;
                     material.roughness = 0.9;
-                    // White color
-                    material.color.setRGB(1, 1, 1);
+                    // Gray color
+                    material.color.setRGB(0.5, 0.5, 0.5);
                     material.needsUpdate = true;
                 }
             }

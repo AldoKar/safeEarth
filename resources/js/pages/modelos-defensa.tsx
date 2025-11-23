@@ -1,11 +1,11 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
-import { Shield, Zap, Rocket, Satellite } from 'lucide-react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Stars, PerspectiveCamera, Grid } from '@react-three/drei';
+import { OrbitControls, Stars, PerspectiveCamera } from '@react-three/drei';
 import { Suspense } from 'react';
 import SpaceshipModel from '@/components/SpaceshipModel';
+import { Button } from '@/components/ui/button';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -23,49 +23,37 @@ const defenseModels = [
         id: 1,
         title: 'Sistema de Interceptación',
         description: 'Tecnología de misiles para interceptar asteroides',
-        icon: Rocket,
-        color: 'from-red-500 to-orange-500',
-        modelPath: '/models/spaceship.gltf',
+        modelPath: '/models/rocket.gltf',
     },
     {
         id: 2,
         title: 'Deflexión por Impacto',
         description: 'Cambio de trayectoria mediante colisión controlada',
-        icon: Zap,
-        color: 'from-blue-500 to-cyan-500',
-        modelPath: '/models/spaceship.gltf',
+        modelPath: '/models/rocket.gltf',
     },
     {
         id: 3,
         title: 'Tractores Gravitacionales',
         description: 'Uso de gravedad artificial para desviar objetos',
-        icon: Satellite,
-        color: 'from-purple-500 to-pink-500',
-        modelPath: '/models/spaceship.gltf',
+        modelPath: '/models/rocket.gltf',
     },
     {
         id: 4,
         title: 'Sistema de Alerta Temprana',
         description: 'Detección y seguimiento de amenazas espaciales',
-        icon: Shield,
-        color: 'from-green-500 to-emerald-500',
-        modelPath: '/models/spaceship.gltf',
+        modelPath: '/models/rocket.gltf',
     },
     {
         id: 5,
         title: 'Láser de Alta Potencia',
         description: 'Vaporización de superficie para alterar trayectoria',
-        icon: Zap,
-        color: 'from-yellow-500 to-orange-500',
-        modelPath: '/models/spaceship.gltf',
+        modelPath: '/models/rocket.gltf',
     },
     {
         id: 6,
         title: 'Explosión Nuclear',
         description: 'Detonación controlada para fragmentar o desviar',
-        icon: Rocket,
-        color: 'from-red-600 to-rose-500',
-        modelPath: '/models/spaceship.gltf',
+        modelPath: '/models/rocket.gltf',
     },
 ];
 
@@ -75,7 +63,6 @@ export default function ModelosDefensa() {
             <Head title="Modelos de Defensa" />
             <div className="flex h-full flex-1 flex-col gap-6 p-6">
                 <div className="flex items-center gap-4">
-                    <Shield className="h-10 w-10 text-primary" />
                     <div>
                         <h1 className="text-3xl font-bold text-gray-900 dark:text-white">
                             Modelos de Defensa Planetaria
@@ -88,7 +75,6 @@ export default function ModelosDefensa() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                     {defenseModels.map((model) => {
-                        const Icon = model.icon;
                         return (
                             <div
                                 key={model.id}
@@ -96,7 +82,7 @@ export default function ModelosDefensa() {
                             >
                                 {/* 3D Model Canvas */}
                                 <div className="relative h-64 bg-black">
-                                    <Canvas camera={{ position: [0, 0, 5], fov: 50 }}>
+                                    <Canvas camera={{ position: [0, 0, 10]}}>
                                         <Suspense fallback={
                                             <mesh>
                                                 <boxGeometry args={[1, 1, 1]} />
@@ -104,28 +90,28 @@ export default function ModelosDefensa() {
                                             </mesh>
                                         }>
                                             {/* Improved lighting setup */}
-                                            <ambientLight intensity={1.5} />
-                                            <directionalLight position={[5, 5, 5]} intensity={2} />
-                                            <spotLight position={[-5, 5, -5]} intensity={1} angle={0.5} />
+                                            <ambientLight intensity={2} />
+                                            <directionalLight position={[5, 5, 5]} intensity={3} />
+                                            <directionalLight position={[-5, -5, -5]} intensity={2} />
+                                            <pointLight position={[0, 10, 0]} intensity={2} />
                                     
-                                            <SpaceshipModel 
-                                                modelPath={model.modelPath}
-                                                scale={0.05}
-                                                position={[0, 0, 0]}
-                                                rotate={true}
-                                            />
-
-                                        <Grid 
-                                            args={[10, 10]}
-                                            sectionSize={1}
-                                            cellSize={1}
-                                        />
+                                            {model.id === 1 && (
+                                                <SpaceshipModel 
+                                                    modelPath={model.modelPath}
+                                                    scale={0.05}
+                                                    position={[0, -1, 0]}
+                                                    rotate={true}
+                                                />
+                                            )}
                                             
                                             <OrbitControls 
                                                 enableZoom={true}
                                                 enablePan={true}
-                                                minDistance={2}
-                                                maxDistance={15}
+                                                target={[0, 0, 0]}
+                                                minDistance={0.5}
+                                                maxDistance={20}
+    
+                            
                                             />
                                         </Suspense>
                                     </Canvas>
@@ -133,15 +119,15 @@ export default function ModelosDefensa() {
 
                                 {/* Info Section */}
                                 <div className="p-6">
-                                    <div className={`inline-flex p-3 rounded-lg bg-gradient-to-br ${model.color} mb-4`}>
-                                        <Icon className="h-6 w-6 text-white" />
-                                    </div>
                                     <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                                         {model.title}
                                     </h3>
-                                    <p className="text-gray-600 dark:text-gray-400">
+                                    <p className="text-gray-600 dark:text-gray-400 mb-4">
                                         {model.description}
                                     </p>
+                                    <Button className="w-full">
+                                        Usar en Simulación
+                                    </Button>
                                 </div>
                             </div>
                         );
