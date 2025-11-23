@@ -25,6 +25,18 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 interface OrbitPoint {
+    time: number;
+    x_orb: number;
+    y_orb: number;
+    'r(t)': number;
+}
+
+interface KeplerData {
+    [key: string]: OrbitPoint[];
+}
+
+// Nuevo formato de la API
+interface KeplerDataPoint {
     time_sec: number;
     x_m: number;
     y_m: number;
@@ -38,7 +50,7 @@ interface KeplerAPIResponse {
         requested_max_points: number;
         destroyed: boolean;
     };
-    data: OrbitPoint[];
+    data: KeplerDataPoint[];
 }
 
 export default function Simulacion2D() {
@@ -47,25 +59,48 @@ export default function Simulacion2D() {
     const [currentFrame, setCurrentFrame] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
     const [speed, setSpeed] = useState(1);
-    const [zoom, setZoom] = useState(1.0);
-    const [isLoading, setIsLoading] = useState(true);
     const animationRef = useRef<number | undefined>(undefined);
 
     useEffect(() => {
-        // Cargar datos del endpoint de Kepler
-        setIsLoading(true);
+        // Cargar datos de la simulación desde el endpoint
         fetch('/keppler-data')
-            .then((response) => response.json())
-            .then((apiResponse: KeplerAPIResponse) => {
-                if (apiResponse.data && apiResponse.data.length > 0) {
-                    setOrbitData(apiResponse.data);
+            .then((response) => {
+                if (!response.ok) {
+                    throw new Error('Error en el endpoint');
                 }
+                return response.json();
             })
-            .catch(error => {
-                console.error('Error loading Kepler data:', error);
+            .then((apiData: KeplerAPIResponse) => {
+                // Convertir el nuevo formato al formato esperado
+                const points: OrbitPoint[] = apiData.data.map((point) => ({
+                    time: point.time_sec / 86400, // Convertir segundos a días
+                    x_orb: point.x_m,
+                    y_orb: point.y_m,
+                    'r(t)': point.r_m,
+                }));
+                setOrbitData(points);
+                console.log(`Cargados ${points.length} puntos orbitales desde el endpoint`);
             })
-            .finally(() => {
-                setIsLoading(false);
+            .catch((error) => {
+                console.warn('Error cargando desde endpoint, usando JSON local:', error);
+                // Fallback al JSON local si el endpoint falla
+                fetch('/kepler_simulation.json')
+                    .then((response) => response.json())
+                    .then((data: KeplerData) => {
+                        const points: OrbitPoint[] = [];
+                        Object.keys(data)
+                            .sort(
+                                (a, b) =>
+                                    parseInt(a.split(':')[1]) -
+                                    parseInt(b.split(':')[1]),
+                            )
+                            .forEach((key) => {
+                                points.push(data[key][0]);
+                            });
+                        setOrbitData(points);
+                        console.log(`Cargados ${points.length} puntos orbitales desde JSON local`);
+                    })
+                    .catch((err) => console.error('Error cargando JSON local:', err));
             });
     }, []);
 
@@ -116,13 +151,13 @@ export default function Simulacion2D() {
                 ctx.fillRect(0, 0, width, height);
             }
 
-            // Encontrar escala con zoom in para ver más cerca
+            // Encontrar escala ajustada para los nuevos datos
             const maxDistance = Math.max(
-                ...orbitData.map((p) => Math.abs(p.x_m)),
-                ...orbitData.map((p) => Math.abs(p.y_m)),
+                ...orbitData.map((p) => Math.abs(p.x_orb)),
+                ...orbitData.map((p) => Math.abs(p.y_orb)),
             );
-            const baseScale = Math.min(width, height) / (2 * maxDistance);
-            const scale = baseScale * zoom;
+            // Ajustar zoom para ver la órbita completa con buen espacio
+            const scale = Math.min(width, height) / (2.2 * maxDistance); 
 
             // Centro del canvas
             const centerX = width / 2;
@@ -143,8 +178,8 @@ export default function Simulacion2D() {
             ctx.setLineDash([8, 4]);
             ctx.beginPath();
             orbitData.forEach((point, index) => {
-                const x = centerX + point.x_m * scale;
-                const y = centerY - point.y_m * scale;
+                const x = centerX + point.x_orb * scale;
+                const y = centerY - point.y_orb * scale;
                 if (index === 0) {
                     ctx.moveTo(x, y);
                 } else {
@@ -154,59 +189,75 @@ export default function Simulacion2D() {
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // Calcular tamaño real de la Tierra a escala
-            const EARTH_RADIUS_M = 6.371e6; // Radio de la Tierra en metros
-            const earthRadiusPixels = EARTH_RADIUS_M * scale; // Tamaño real a escala, sin mínimo forzado
+            // Dibujar la Tierra en el centro
+            // Radio de la Tierra: ~6.371 x 10^6 metros
+            const earthActualRadius = 6.371e6;
+            const earthRadius = Math.max(20, earthActualRadius * scale * 5);
             
-            // Solo dibujar la Tierra si es visible (al menos 1 pixel)
-            if (earthRadiusPixels >= 1) {
-                // Atmósfera (glow azul suave)
-                const earthGlow = ctx.createRadialGradient(
-                    centerX, centerY, earthRadiusPixels, 
-                    centerX, centerY, earthRadiusPixels * 1.5
-                );
-                earthGlow.addColorStop(0, 'rgba(100, 180, 255, 0.3)');
-                earthGlow.addColorStop(1, 'rgba(100, 180, 255, 0)');
-                ctx.fillStyle = earthGlow;
-                ctx.beginPath();
-                ctx.arc(centerX, centerY, earthRadiusPixels * 1.5, 0, Math.PI * 2);
-                ctx.fill();
-                
-                // Cuerpo de la Tierra
-                const earthGradient = ctx.createRadialGradient(
-                    centerX - earthRadiusPixels * 0.3,
-                    centerY - earthRadiusPixels * 0.3,
-                    earthRadiusPixels * 0.1,
-                    centerX,
-                    centerY,
-                    earthRadiusPixels
-                );
-                earthGradient.addColorStop(0, '#6BA3D4');
-                earthGradient.addColorStop(0.5, '#3B82F6');
-                earthGradient.addColorStop(1, '#1E40AF');
-                ctx.fillStyle = earthGradient;
-                ctx.beginPath();
-                ctx.arc(centerX, centerY, earthRadiusPixels, 0, Math.PI * 2);
-                ctx.fill();
-            } else {
-                // Si la Tierra es demasiado pequeña, dibújarla como un punto brillante
-                ctx.fillStyle = '#3B82F6';
-                ctx.shadowBlur = 3;
-                ctx.shadowColor = '#60A5FA';
-                ctx.beginPath();
-                ctx.arc(centerX, centerY, 2, 0, Math.PI * 2);
-                ctx.fill();
-                ctx.shadowBlur = 0;
-            }
+            // Gradiente de la Tierra (azul/verde)
+            const earthGradient = ctx.createRadialGradient(
+                centerX - earthRadius * 0.3, 
+                centerY - earthRadius * 0.3, 
+                0, 
+                centerX, 
+                centerY, 
+                earthRadius
+            );
+            earthGradient.addColorStop(0, '#4a9eff');
+            earthGradient.addColorStop(0.3, '#2e7dd6');
+            earthGradient.addColorStop(0.6, '#1e5aa8');
+            earthGradient.addColorStop(0.8, '#0d3d7a');
+            earthGradient.addColorStop(1, '#082850');
+            
+            // Dibujar la Tierra
+            ctx.fillStyle = earthGradient;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, earthRadius, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Continentes simplificados (manchas verdes/marrones)
+            ctx.fillStyle = 'rgba(76, 139, 89, 0.6)';
+            ctx.beginPath();
+            ctx.arc(centerX + earthRadius * 0.3, centerY - earthRadius * 0.2, earthRadius * 0.3, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(centerX - earthRadius * 0.4, centerY + earthRadius * 0.1, earthRadius * 0.25, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Nubes (blanco semi-transparente)
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.beginPath();
+            ctx.arc(centerX + earthRadius * 0.5, centerY + earthRadius * 0.3, earthRadius * 0.2, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(centerX - earthRadius * 0.2, centerY - earthRadius * 0.4, earthRadius * 0.15, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Borde de la Tierra
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.2)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, earthRadius, 0, Math.PI * 2);
+            ctx.stroke();
+            
+            // Atmósfera (glow azul suave)
+            ctx.shadowBlur = 20;
+            ctx.shadowColor = 'rgba(100, 180, 255, 0.6)';
+            ctx.strokeStyle = 'rgba(100, 180, 255, 0.3)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(centerX, centerY, earthRadius + 5, 0, Math.PI * 2);
+            ctx.stroke();
+            ctx.shadowBlur = 0;
 
             // Dibujar trayectoria recorrida con efecto de desvanecimiento
             if (currentFrame > 0) {
                 // Gradiente de la trayectoria
                 const pathGradient = ctx.createLinearGradient(
-                    centerX + orbitData[0].x_m * scale,
-                    centerY - orbitData[0].y_m * scale,
-                    centerX + orbitData[currentFrame].x_m * scale,
-                    centerY - orbitData[currentFrame].y_m * scale
+                    centerX + orbitData[0].x_orb * scale,
+                    centerY - orbitData[0].y_orb * scale,
+                    centerX + orbitData[currentFrame].x_orb * scale,
+                    centerY - orbitData[currentFrame].y_orb * scale
                 );
                 pathGradient.addColorStop(0, 'rgba(59, 130, 246, 0.3)');
                 pathGradient.addColorStop(1, 'rgba(59, 130, 246, 1)');
@@ -218,8 +269,8 @@ export default function Simulacion2D() {
                 ctx.beginPath();
                 for (let i = 0; i <= currentFrame && i < orbitData.length; i++) {
                     const point = orbitData[i];
-                    const x = centerX + point.x_m * scale;
-                    const y = centerY - point.y_m * scale;
+                    const x = centerX + point.x_orb * scale;
+                    const y = centerY - point.y_orb * scale;
                     if (i === 0) {
                         ctx.moveTo(x, y);
                     } else {
@@ -232,8 +283,8 @@ export default function Simulacion2D() {
                 ctx.fillStyle = 'rgba(59, 130, 246, 0.5)';
                 for (let i = 0; i <= currentFrame && i < orbitData.length; i += 5) {
                     const point = orbitData[i];
-                    const x = centerX + point.x_m * scale;
-                    const y = centerY - point.y_m * scale;
+                    const x = centerX + point.x_orb * scale;
+                    const y = centerY - point.y_orb * scale;
                     ctx.beginPath();
                     ctx.arc(x, y, 2, 0, Math.PI * 2);
                     ctx.fill();
@@ -243,8 +294,8 @@ export default function Simulacion2D() {
             // Dibujar meteorito en posición actual
             if (currentFrame < orbitData.length) {
                 const currentPoint = orbitData[currentFrame];
-                const x = centerX + currentPoint.x_m * scale;
-                const y = centerY - currentPoint.y_m * scale;
+                const x = centerX + currentPoint.x_orb * scale;
+                const y = centerY - currentPoint.y_orb * scale;
 
                 // Línea a la Tierra (radio vector) - dibujada primero
                 ctx.strokeStyle = 'rgba(100, 100, 100, 0.2)';
@@ -261,8 +312,8 @@ export default function Simulacion2D() {
                     const tailLength = Math.min(5, currentFrame);
                     for (let i = 1; i <= tailLength; i++) {
                         const tailPoint = orbitData[currentFrame - i];
-                        const tx = centerX + tailPoint.x_m * scale;
-                        const ty = centerY - tailPoint.y_m * scale;
+                        const tx = centerX + tailPoint.x_orb * scale;
+                        const ty = centerY - tailPoint.y_orb * scale;
                         const alpha = 1 - (i / tailLength);
                         const size = 6 * alpha;
                         
@@ -301,11 +352,13 @@ export default function Simulacion2D() {
                 ctx.stroke();
 
                 // Información de distancia
-                const distanceKm = (currentPoint.r_m / 1000).toFixed(0);
+                const distance = currentPoint['r(t)'];
+                // Convertir a millones de km para mejor legibilidad
+                const distanceMKm = (distance / 1e9).toFixed(2);
                 ctx.fillStyle = isDark ? '#fff' : '#000';
                 ctx.font = '11px monospace';
                 ctx.textAlign = 'center';
-                ctx.fillText(`${distanceKm} km`, x, y - 20);
+                ctx.fillText(`${distanceMKm} M km`, x, y - 20);
             }
 
             // Dibujar ejes de coordenadas con marcadores
@@ -354,36 +407,6 @@ export default function Simulacion2D() {
                 ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
                 ctx.stroke();
             });
-
-            // Mensaje de impacto cuando llega al último frame
-            if (currentFrame === orbitData.length - 1) {
-                // Fondo semitransparente para el mensaje
-                ctx.fillStyle = 'rgba(220, 38, 38, 0.9)';
-                ctx.shadowBlur = 20;
-                ctx.shadowColor = 'rgba(220, 38, 38, 0.8)';
-                const msgWidth = 400;
-                const msgHeight = 100;
-                const msgX = (width - msgWidth) / 2;
-                const msgY = (height - msgHeight) / 2;
-                ctx.fillRect(msgX, msgY, msgWidth, msgHeight);
-                ctx.shadowBlur = 0;
-
-                // Borde brillante
-                ctx.strokeStyle = '#fca5a5';
-                ctx.lineWidth = 3;
-                ctx.strokeRect(msgX, msgY, msgWidth, msgHeight);
-
-                // Texto principal
-                ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 32px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText('⚠️ IMPACTO DETECTADO ⚠️', width / 2, height / 2 - 10);
-
-                // Texto secundario
-                ctx.font = '16px sans-serif';
-                ctx.fillStyle = '#fecaca';
-                ctx.fillText('El meteorito colisionó con la Tierra', width / 2, height / 2 + 25);
-            }
         };
 
         resizeCanvas();
@@ -392,7 +415,7 @@ export default function Simulacion2D() {
         return () => {
             window.removeEventListener('resize', resizeCanvas);
         };
-    }, [orbitData, currentFrame, zoom]);
+    }, [orbitData, currentFrame]);
 
     useEffect(() => {
         if (isPlaying && orbitData.length > 0) {
@@ -408,7 +431,7 @@ export default function Simulacion2D() {
                     setCurrentFrame((prev) => {
                         if (prev >= orbitData.length - 1) {
                             setIsPlaying(false);
-                            return orbitData.length - 1; // Mantener en el último frame
+                            return 0;
                         }
                         return prev + 1;
                     });
@@ -453,16 +476,9 @@ export default function Simulacion2D() {
                                     Kepler
                                 </CardDescription>
                             </div>
-                            <div className="flex gap-2">
-                                {currentFrame === orbitData.length - 1 && orbitData.length > 0 && (
-                                    <Badge variant="destructive" className="animate-pulse">
-                                        ⚠️ IMPACTO
-                                    </Badge>
-                                )}
-                                <Badge variant="secondary">
-                                    Frame {currentFrame + 1} / {orbitData.length}
-                                </Badge>
-                            </div>
+                            <Badge variant="secondary">
+                                Frame {currentFrame + 1} / {orbitData.length}
+                            </Badge>
                         </div>
                     </CardHeader>
                 </Card>
@@ -471,23 +487,10 @@ export default function Simulacion2D() {
                     <div className="lg:col-span-3">
                         <Card className="h-full">
                             <CardContent className="p-0 h-full relative">
-                                {isLoading ? (
-                                    <div className="w-full h-full flex flex-col items-center justify-center gap-4 min-h-[500px]">
-                                        <div className="relative">
-                                            <div className="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-                                            <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-b-primary/50 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1s' }}></div>
-                                        </div>
-                                        <div className="text-center space-y-2">
-                                            <p className="text-lg font-semibold">Cargando datos orbitales...</p>
-                                            <p className="text-sm text-muted-foreground">Obteniendo datos de simulación de Kepler</p>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <canvas
-                                        ref={canvasRef}
-                                        className="w-full h-full rounded-lg"
-                                    />
-                                )}
+                                <canvas
+                                    ref={canvasRef}
+                                    className="w-full h-full rounded-lg"
+                                />
                             </CardContent>
                         </Card>
                     </div>
@@ -507,7 +510,6 @@ export default function Simulacion2D() {
                                         variant={
                                             isPlaying ? 'secondary' : 'default'
                                         }
-                                        disabled={isLoading || orbitData.length === 0}
                                     >
                                         {isPlaying ? (
                                             <>
@@ -536,7 +538,6 @@ export default function Simulacion2D() {
                                     <Button
                                         onClick={handleReset}
                                         variant="outline"
-                                        disabled={isLoading || orbitData.length === 0}
                                     >
                                         <svg
                                             className="w-4 h-4"
@@ -567,25 +568,6 @@ export default function Simulacion2D() {
                                             setSpeed(Number(e.target.value))
                                         }
                                         className="w-full"
-                                        disabled={isLoading}
-                                    />
-                                </div>
-                                <Separator />
-                                <div>
-                                    <label className="text-sm text-muted-foreground mb-2 block">
-                                        Zoom: {zoom.toFixed(1)}x
-                                    </label>
-                                    <input
-                                        type="range"
-                                        min="0.5"
-                                        max="10"
-                                        step="0.5"
-                                        value={zoom}
-                                        onChange={(e) =>
-                                            setZoom(Number(e.target.value))
-                                        }
-                                        className="w-full"
-                                        disabled={isLoading}
                                     />
                                 </div>
                                 <Separator />
@@ -605,7 +587,6 @@ export default function Simulacion2D() {
                                             setIsPlaying(false);
                                         }}
                                         className="w-full"
-                                        disabled={isLoading || orbitData.length === 0}
                                     />
                                 </div>
                             </CardContent>
@@ -621,37 +602,39 @@ export default function Simulacion2D() {
                                 <CardContent className="space-y-3">
                                     <div>
                                         <p className="text-xs text-muted-foreground mb-1">
-                                            Tiempo
+                                            Tiempo (s)
                                         </p>
                                         <p className="text-sm font-mono">
-                                            {(currentPoint.time_sec / 86400).toFixed(2)} días
+                                            {currentPoint.time.toFixed(2)}
                                         </p>
                                     </div>
                                     <Separator />
                                     <div>
                                         <p className="text-xs text-muted-foreground mb-1">
-                                            Posición X (Mm)
+                                            Posición X (m)
                                         </p>
                                         <p className="text-sm font-mono">
-                                            {(currentPoint.x_m / 1e6).toFixed(2)}
+                                            {currentPoint.x_orb.toExponential(2)}
                                         </p>
                                     </div>
                                     <Separator />
                                     <div>
                                         <p className="text-xs text-muted-foreground mb-1">
-                                            Posición Y (Mm)
+                                            Posición Y (m)
                                         </p>
                                         <p className="text-sm font-mono">
-                                            {(currentPoint.y_m / 1e6).toFixed(2)}
+                                            {currentPoint.y_orb.toExponential(2)}
                                         </p>
                                     </div>
                                     <Separator />
                                     <div>
                                         <p className="text-xs text-muted-foreground mb-1">
-                                            Distancia (km)
+                                            Radio (m)
                                         </p>
                                         <p className="text-sm font-mono">
-                                            {(currentPoint.r_m / 1000).toFixed(0)}
+                                            {currentPoint['r(t)'].toExponential(
+                                                2,
+                                            )}
                                         </p>
                                     </div>
                                 </CardContent>
