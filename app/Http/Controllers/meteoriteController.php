@@ -24,7 +24,7 @@ class meteoriteController extends Controller
     }
 
     public function getKepplerData(){
-        $response = Http::get('http://127.0.0.1:8001/datos');
+        $response = Http::get('http://3.141.38.117/datos2D');
         if ($response->successful()) {
             $data = $response->json();
             return response()->json($data);
