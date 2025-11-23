@@ -1,6 +1,6 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import {
     Card,
     CardContent,
@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { Button } from '@/components/ui/button';
 import { useEffect, useState } from 'react';
 import meteoritoImage from '@/../../resources/assets/textures/meteorito.jpeg';
 import {
@@ -165,7 +166,7 @@ export default function Graficas() {
                 <Card>
                     <CardHeader>
                         <div className="flex items-center justify-between">
-                            <div>
+                            <div className="flex-1">
                                 <CardTitle className="text-2xl">
                                     Ficha Técnica del Meteorito
                                 </CardTitle>
@@ -174,11 +175,22 @@ export default function Graficas() {
                                     la Tierra
                                 </CardDescription>
                             </div>
-                            {meteoriteData.is_potentially_hazardous_asteroid && (
-                                <Badge variant="destructive">
-                                    Potencialmente Peligroso
-                                </Badge>
-                            )}
+                            <div className="flex items-center gap-3">
+                                {meteoriteData.is_potentially_hazardous_asteroid && (
+                                    <Badge variant="destructive">
+                                        Potencialmente Peligroso
+                                    </Badge>
+                                )}
+                                <Link href="/apocalypse-story">
+                                    <Button 
+                                        variant="destructive" 
+                                        size="lg"
+                                        className="font-bold text-lg px-6 animate-pulse hover:scale-105 transition-transform shadow-[0_0_20px_rgba(255,0,0,0.5)]"
+                                    >
+                                        🚨 ALERTA PLANETARIA
+                                    </Button>
+                                </Link>
+                            </div>
                         </div>
                     </CardHeader>
                 </Card>

@@ -16,3 +16,8 @@ npm install lucide-react
 
 npm i @react-three/rapier
 npx shadcn@latest add chart
+
+npm install @react-three/fiber
+npm install @react-three/drei
+npm install three @types/three
+npm install motion

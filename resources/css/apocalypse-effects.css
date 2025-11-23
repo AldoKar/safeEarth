@@ -1,0 +1,155 @@
+@keyframes glitch {
+  0% {
+    transform: translate(0);
+  }
+  20% {
+    transform: translate(-2px, 2px);
+  }
+  40% {
+    transform: translate(-2px, -2px);
+  }
+  60% {
+    transform: translate(2px, 2px);
+  }
+  80% {
+    transform: translate(2px, -2px);
+  }
+  100% {
+    transform: translate(0);
+  }
+}
+
+@keyframes glitch-color {
+  0% {
+    text-shadow: 
+      -2px 0 0 rgba(220, 38, 38, 0.6),
+      2px 0 0 rgba(59, 130, 246, 0.4);
+  }
+  25% {
+    text-shadow: 
+      2px 0 0 rgba(220, 38, 38, 0.6),
+      -2px 0 0 rgba(59, 130, 246, 0.4);
+  }
+  50% {
+    text-shadow: 
+      -2px 0 0 rgba(59, 130, 246, 0.4),
+      2px 0 0 rgba(220, 38, 38, 0.6);
+  }
+  75% {
+    text-shadow: 
+      2px 0 0 rgba(59, 130, 246, 0.4),
+      -2px 0 0 rgba(220, 38, 38, 0.6);
+  }
+  100% {
+    text-shadow: 
+      -2px 0 0 rgba(220, 38, 38, 0.6),
+      2px 0 0 rgba(59, 130, 246, 0.4);
+  }
+}
+
+.apocalypse-glitch {
+  position: relative;
+  animation: glitch 0.3s ease-in-out infinite;
+}
+
+.apocalypse-glitch::before,
+.apocalypse-glitch::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.apocalypse-glitch::before {
+  animation: glitch-color 0.3s ease-in-out infinite;
+  clip-path: polygon(0 0, 100% 0, 100% 45%, 0 45%);
+  transform: translate(-2px, -2px);
+}
+
+.apocalypse-glitch::after {
+  animation: glitch-color 0.3s ease-in-out infinite reverse;
+  clip-path: polygon(0 55%, 100% 55%, 100% 100%, 0 100%);
+  transform: translate(2px, 2px);
+}
+
+.apocalypse-scan-line {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 2px;
+  background: rgba(220, 38, 38, 0.3);
+  animation: scan 4s linear infinite;
+  pointer-events: none;
+  z-index: 9999;
+}
+
+@keyframes scan {
+  0% {
+    transform: translateY(0);
+  }
+  100% {
+    transform: translateY(100vh);
+  }
+}
+
+.apocalypse-vignette {
+  position: fixed;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at center,
+    transparent 0%,
+    transparent 60%,
+    rgba(0, 0, 0, 0.8) 100%
+  );
+  pointer-events: none;
+  z-index: 1;
+}
+
+.apocalypse-chromatic-aberration {
+  animation: chromatic 2s ease-in-out infinite alternate;
+}
+
+@keyframes chromatic {
+  0% {
+    text-shadow: 
+      -2px 0 0 rgba(220, 38, 38, 0.4),
+      2px 0 0 rgba(59, 130, 246, 0.4);
+  }
+  100% {
+    text-shadow: 
+      -4px 0 0 rgba(220, 38, 38, 0.4),
+      4px 0 0 rgba(59, 130, 246, 0.4);
+  }
+}
+
+.apocalypse-pulse {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% {
+    text-shadow: 
+      0 0 5px currentColor,
+      0 0 10px currentColor,
+      0 0 15px currentColor;
+  }
+  50% {
+    text-shadow: 
+      0 0 10px currentColor,
+      0 0 20px currentColor,
+      0 0 30px currentColor;
+  }
+}
+
+.apocalypse-shake {
+  animation: shake 0.5s ease-in-out infinite;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-2px); }
+  20%, 40%, 60%, 80% { transform: translateX(2px); }
+}

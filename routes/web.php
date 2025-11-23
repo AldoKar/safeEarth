@@ -6,9 +6,7 @@ use Inertia\Inertia;
 use Laravel\Fortify\Features;
 
 Route::get('/', function () {
-    return Inertia::render('welcome', [
-        'canRegister' => Features::enabled(Features::registration()),
-    ]);
+    return Inertia::render('apocalypse-story');
 })->name('home');
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -35,6 +33,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('modelos-defensa', function () {
         return Inertia::render('modelos-defensa');
     })->name('modelos-defensa');
+
+    Route::get('apocalypse-story', function () {
+        return Inertia::render('apocalypse-story');
+    })->name('apocalypse-story');
 });
 
 // rutas de los meteoritos
