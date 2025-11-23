@@ -24,21 +24,21 @@ export default function Dashboard() {
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Dashboard" />
-            <div className="flex h-full flex-1 gap-4 p-4">
+            <div className="flex flex-col lg:flex-row h-full flex-1 gap-4 p-4">
                 {/* Welcome Box */}
-                <div className="relative w-80 overflow-hidden rounded-xl border border-sidebar-border/70 dark:bg-gray-900 dark:border-sidebar-border p-8 flex items-center justify-center">
+                <div className="relative w-full lg:w-80 overflow-hidden rounded-xl border border-sidebar-border/70 dark:bg-gray-900 dark:border-sidebar-border p-6 sm:p-8 flex items-center justify-center min-h-[200px] lg:min-h-0">
                     <div className="text-center">
-                        <h2 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">
+                        <h2 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">
                             Bienvenido, {auth.user.name}
                         </h2>
-                        <p className="text-base text-gray-600 dark:text-gray-300">
+                        <p className="text-sm sm:text-base text-gray-600 dark:text-gray-300">
                             Sistema de Simulación SafeEarth
                         </p>
                     </div>
                 </div>
 
                 {/* Large Earth Canvas */}
-                <div className="relative flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-black">
+                <div className="relative flex-1 overflow-hidden rounded-xl border border-sidebar-border/70 dark:border-sidebar-border bg-black min-h-[400px] sm:min-h-[500px] lg:min-h-0">
                     <Canvas
                         camera={{ position: [0, 0, 5]}}
                         style={{ width: '100%', height: '100%' }}

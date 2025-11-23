@@ -30,30 +30,32 @@ export default function Login({
     return (
         <>
             <Head title="Log in" />
-            <div className="flex min-h-screen">
+            <div className="flex min-h-screen flex-col-reverse lg:flex-row">
                 {/* Left side - Login Form */}
-                <div className="flex w-full flex-col justify-center px-6 py-12 lg:w-1/2 lg:px-8 relative">
-                    {/* Logo en la esquina superior izquierda */}
-                    <div className="absolute top-8 left-8 flex items-center gap-2">
+                <div className="flex w-full flex-col px-4 sm:px-6 lg:w-1/2 lg:px-8 bg-background min-h-screen lg:min-h-0">
+                    {/* Logo en la parte superior */}
+                    <div className="py-6 sm:py-8 flex items-center gap-2">
                         <div className="flex aspect-square size-8 items-center justify-center rounded-md bg-black">
                             <Earth className="size-5 text-white" />
                         </div>
                         <span className="text-xl font-bold">SafeEarth</span>
                     </div>
 
-                    <div className="mx-auto w-full max-w-sm">
-                        <Card>
-                            <CardHeader>
-                                <div>
-                                    <h2 className="text-2xl font-bold tracking-tight">
-                                        Welcome back
-                                    </h2>
-                                    <p className="mt-2 text-sm text-muted-foreground">
+                    {/* Card centrada */}
+                    <div className="flex-1 flex items-center justify-center py-4 sm:py-8">
+                        <div className="w-full max-w-sm">
+                            <Card>
+                                <CardHeader className="space-y-1 p-6">
+                                    <div>
+                                        <h2 className="text-2xl font-bold tracking-tight">
+                                            Welcome back
+                                        </h2>
+                                    <p className="mt-2 text-xs sm:text-sm text-muted-foreground">
                                         Enter your email and password to access your account
                                     </p>
                                 </div>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="p-6 pt-0">
                                 {status && (
                                     <div className="mb-4 rounded-lg bg-green-50 p-4 text-sm text-green-600 dark:bg-green-900/20 dark:text-green-400">
                                         {status}
@@ -147,11 +149,12 @@ export default function Login({
                                 </Form>
                             </CardContent>
                         </Card>
+                        </div>
                     </div>
                 </div>
 
                 {/* Right side - 3D Earth Canvas */}
-                <div className="hidden lg:block lg:w-1/2 relative bg-black">
+                <div className="w-full h-[40vh] sm:h-[50vh] lg:h-auto lg:w-1/2 relative bg-black order-first lg:order-last">
                     <Canvas
                         camera={{ position: [0, 0, 5] }}
                         style={{ width: '100%', height: '100%' }}

@@ -293,7 +293,7 @@ function Scene3D({ currentScene }: { currentScene: number }) {
 
 function StoryText({ scene }: { scene: StoryScene }) {
     return (
-        <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center z-10">
+        <div className="absolute inset-0 pointer-events-none flex flex-col items-center justify-center z-10 px-4 sm:px-8">
             <AnimatePresence mode="wait">
                 <motion.div
                     key={scene.id}
@@ -301,11 +301,11 @@ function StoryText({ scene }: { scene: StoryScene }) {
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -30 }}
                     transition={{ duration: 1.5 }}
-                    className="text-center space-y-8 max-w-5xl px-8"
+                    className="text-center space-y-4 sm:space-y-8 max-w-5xl w-full"
                 >
                     {/* Línea de clasificación superior */}
                     <motion.div
-                        className="text-xs font-mono text-gray-700 uppercase tracking-widest"
+                        className="text-[10px] sm:text-xs font-mono text-gray-700 uppercase tracking-widest"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.1, duration: 0.8 }}
@@ -314,7 +314,7 @@ function StoryText({ scene }: { scene: StoryScene }) {
                     </motion.div>
 
                     <motion.h1
-                        className="text-6xl font-light text-gray-200 tracking-wide"
+                        className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-light text-gray-200 tracking-wide"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.3, duration: 1.2 }}
@@ -323,7 +323,7 @@ function StoryText({ scene }: { scene: StoryScene }) {
                     </motion.h1>
                     
                     <motion.h2
-                        className="text-2xl font-light text-gray-400 border-l-2 border-gray-700 pl-6 max-w-3xl mx-auto text-left"
+                        className="text-sm sm:text-lg md:text-xl lg:text-2xl font-light text-gray-400 border-l-2 border-gray-700 pl-3 sm:pl-6 max-w-3xl mx-auto text-left"
                         initial={{ opacity: 0, x: -30 }}
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: 0.6, duration: 1 }}
@@ -332,7 +332,7 @@ function StoryText({ scene }: { scene: StoryScene }) {
                     </motion.h2>
                     
                     <motion.p
-                        className="text-lg text-gray-500 font-light max-w-3xl mx-auto leading-relaxed"
+                        className="text-xs sm:text-sm md:text-base lg:text-lg text-gray-500 font-light max-w-3xl mx-auto leading-relaxed"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 0.9, duration: 1.2 }}
@@ -342,7 +342,7 @@ function StoryText({ scene }: { scene: StoryScene }) {
 
                     {/* Barra de progreso */}
                     <motion.div
-                        className="w-96 h-1 bg-gray-700 rounded-full overflow-hidden mx-auto mt-8"
+                        className="w-48 sm:w-64 md:w-96 h-1 bg-gray-700 rounded-full overflow-hidden mx-auto mt-4 sm:mt-8"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 1 }}
@@ -416,26 +416,26 @@ export default function ApocalypseStory() {
                 <div className="absolute inset-0 bg-gradient-radial from-transparent via-black/50 to-black pointer-events-none" />
 
                 <motion.div
-                    className="text-center space-y-12 z-10 max-w-5xl px-8"
+                    className="text-center space-y-6 sm:space-y-12 z-10 max-w-5xl px-4 sm:px-8"
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     transition={{ duration: 2 }}
                 >
                     {/* Encabezado principal */}
                     <motion.div
-                        className="space-y-6"
+                        className="space-y-4 sm:space-y-6"
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.5, duration: 1.2 }}
                     >
-                        <div className="inline-block border-l-2 border-red-800 pl-6 text-left">
-                            <p className="text-xs font-mono text-gray-600 uppercase tracking-widest mb-2">
+                        <div className="inline-block border-l-2 border-red-800 pl-3 sm:pl-6 text-left">
+                            <p className="text-[10px] sm:text-xs font-mono text-gray-600 uppercase tracking-widest mb-2">
                                 CLASIFICADO • NASA JPL • CNEOS
                             </p>
-                            <h1 className="text-5xl font-light text-gray-200 tracking-wide">
+                            <h1 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-light text-gray-200 tracking-wide">
                                 INFORME DE AMENAZA
                             </h1>
-                            <h2 className="text-6xl font-bold text-gray-100 mt-2">
+                            <h2 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold text-gray-100 mt-2">
                                 ASTEROIDE 35396
                             </h2>
                         </div>
@@ -443,26 +443,26 @@ export default function ApocalypseStory() {
                     
                     {/* Datos técnicos */}
                     <motion.div
-                        className="space-y-3 border-t border-b border-gray-800 py-6"
+                        className="space-y-2 sm:space-y-3 border-t border-b border-gray-800 py-4 sm:py-6"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 1, duration: 1.2 }}
                     >
-                        <div className="flex justify-between items-center text-left max-w-2xl mx-auto">
-                            <span className="text-xs font-mono text-gray-600 uppercase tracking-wider">Designación</span>
-                            <span className="text-lg text-gray-300 font-light">1997 XF11 • Clase Apollo</span>
+                        <div className="flex justify-between items-center text-left max-w-2xl mx-auto gap-2">
+                            <span className="text-[10px] sm:text-xs font-mono text-gray-600 uppercase tracking-wider">Designación</span>
+                            <span className="text-xs sm:text-sm md:text-lg text-gray-300 font-light">1997 XF11 • Clase Apollo</span>
                         </div>
-                        <div className="flex justify-between items-center text-left max-w-2xl mx-auto">
-                            <span className="text-xs font-mono text-gray-600 uppercase tracking-wider">Diámetro Est.</span>
-                            <span className="text-lg text-gray-300 font-light">0.7 - 1.4 km</span>
+                        <div className="flex justify-between items-center text-left max-w-2xl mx-auto gap-2">
+                            <span className="text-[10px] sm:text-xs font-mono text-gray-600 uppercase tracking-wider">Diámetro Est.</span>
+                            <span className="text-xs sm:text-sm md:text-lg text-gray-300 font-light">0.7 - 1.4 km</span>
                         </div>
-                        <div className="flex justify-between items-center text-left max-w-2xl mx-auto">
-                            <span className="text-xs font-mono text-gray-600 uppercase tracking-wider">Velocidad</span>
-                            <span className="text-lg text-gray-300 font-light">28.25 km/s</span>
+                        <div className="flex justify-between items-center text-left max-w-2xl mx-auto gap-2">
+                            <span className="text-[10px] sm:text-xs font-mono text-gray-600 uppercase tracking-wider">Velocidad</span>
+                            <span className="text-xs sm:text-sm md:text-lg text-gray-300 font-light">28.25 km/s</span>
                         </div>
-                        <div className="flex justify-between items-center text-left max-w-2xl mx-auto">
-                            <span className="text-xs font-mono text-gray-600 uppercase tracking-wider">Aprox. Cercano</span>
-                            <span className="text-lg text-gray-300 font-light">26 Oct 2028</span>
+                        <div className="flex justify-between items-center text-left max-w-2xl mx-auto gap-2">
+                            <span className="text-[10px] sm:text-xs font-mono text-gray-600 uppercase tracking-wider">Aprox. Cercano</span>
+                            <span className="text-xs sm:text-sm md:text-lg text-gray-300 font-light">26 Oct 2028</span>
                         </div>
                     </motion.div>
 
@@ -473,7 +473,7 @@ export default function ApocalypseStory() {
                         animate={{ opacity: 1 }}
                         transition={{ delay: 1.5, duration: 1 }}
                     >
-                        <p className="text-base text-gray-500 font-light max-w-2xl mx-auto leading-relaxed">
+                        <p className="text-xs sm:text-sm md:text-base text-gray-500 font-light max-w-2xl mx-auto leading-relaxed">
                             Este informe documenta la trayectoria y el riesgo potencial del objeto cercano a la Tierra
                             35396 (1997 XF11). Los datos presentados son de naturaleza crítica para la seguridad planetaria.
                         </p>
@@ -481,21 +481,21 @@ export default function ApocalypseStory() {
                     
                     {/* Control de acceso */}
                     <motion.div
-                        className="pt-8"
+                        className="pt-4 sm:pt-8"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 2, duration: 1 }}
                     >
                         <motion.button
                             onClick={() => setStarted(true)}
-                            className="px-16 py-4 bg-gray-900 border border-gray-700 text-gray-300 text-sm font-mono uppercase tracking-widest rounded-none hover:bg-gray-800 hover:border-gray-600 transition-all duration-300"
+                            className="px-8 sm:px-12 md:px-16 py-3 sm:py-4 bg-gray-900 border border-gray-700 text-gray-300 text-xs sm:text-sm font-mono uppercase tracking-widest rounded-none hover:bg-gray-800 hover:border-gray-600 transition-all duration-300 w-full sm:w-auto"
                             whileHover={{ scale: 1.02 }}
                             whileTap={{ scale: 0.98 }}
                         >
                             Acceder al Informe
                         </motion.button>
                         
-                        <p className="text-xs text-gray-700 mt-8 font-mono">
+                        <p className="text-[10px] sm:text-xs text-gray-700 mt-4 sm:mt-8 font-mono px-4">
                             VISUALIZACIÓN 3D • DATOS EN TIEMPO REAL • ANÁLISIS DE TRAYECTORIA
                         </p>
                     </motion.div>
@@ -536,14 +536,14 @@ export default function ApocalypseStory() {
                 </div>
 
                 {/* Texto épico de créditos */}
-                <div className="text-center z-10">
+                <div className="text-center z-10 px-4">
                     <motion.div
                         initial={{ scale: 0.5, opacity: 0 }}
                         animate={{ scale: 1, opacity: 1 }}
                         transition={{ duration: 1.5, type: "spring", stiffness: 100 }}
                     >
                         <motion.h1
-                            className="text-8xl md:text-9xl font-bold text-gray-200 tracking-widest mb-8"
+                            className="text-5xl sm:text-7xl md:text-8xl lg:text-9xl font-bold text-gray-200 tracking-widest mb-4 sm:mb-8"
                             animate={{
                                 textShadow: [
                                     "0 0 20px rgba(255,255,255,0.3)",
@@ -564,19 +564,19 @@ export default function ApocalypseStory() {
                         initial={{ opacity: 0, y: 30 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 0.8, duration: 1 }}
-                        className="flex items-center justify-center gap-4"
+                        className="flex items-center justify-center gap-2 sm:gap-4"
                     >
                         <motion.div
-                            className="h-px w-20 bg-gradient-to-r from-transparent to-gray-600"
+                            className="h-px w-12 sm:w-20 bg-gradient-to-r from-transparent to-gray-600"
                             initial={{ scaleX: 0 }}
                             animate={{ scaleX: 1 }}
                             transition={{ delay: 1.2, duration: 0.8 }}
                         />
-                        <p className="text-2xl font-light text-gray-400 tracking-[0.3em] uppercase">
+                        <p className="text-lg sm:text-2xl font-light text-gray-400 tracking-[0.3em] uppercase">
                             by
                         </p>
                         <motion.div
-                            className="h-px w-20 bg-gradient-to-l from-transparent to-gray-600"
+                            className="h-px w-12 sm:w-20 bg-gradient-to-l from-transparent to-gray-600"
                             initial={{ scaleX: 0 }}
                             animate={{ scaleX: 1 }}
                             transition={{ delay: 1.2, duration: 0.8 }}
@@ -584,7 +584,7 @@ export default function ApocalypseStory() {
                     </motion.div>
 
                     <motion.h2
-                        className="text-6xl font-light text-gray-300 tracking-[0.2em] mt-6 mb-16"
+                        className="text-4xl sm:text-5xl md:text-6xl font-light text-gray-300 tracking-[0.2em] mt-4 sm:mt-6 mb-8 sm:mb-16"
                         initial={{ opacity: 0, y: 20 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 1.5, duration: 1 }}
@@ -594,7 +594,7 @@ export default function ApocalypseStory() {
 
                     {/* Controles de navegación */}
                     <motion.div
-                        className="flex gap-6 justify-center mt-16"
+                        className="flex flex-col sm:flex-row gap-4 sm:gap-6 justify-center mt-8 sm:mt-16"
                         initial={{ opacity: 0, y: 30 }}
                         animate={{ opacity: 1, y: 0 }}
                         transition={{ delay: 2, duration: 1 }}
@@ -605,7 +605,7 @@ export default function ApocalypseStory() {
                                 setStarted(false);
                                 setCurrentScene(0);
                             }}
-                            className="px-12 py-4 bg-gray-900 border border-gray-700 hover:bg-gray-800 hover:border-gray-600 text-gray-300 font-light text-sm uppercase tracking-widest rounded-none transition-all duration-300"
+                            className="px-6 sm:px-12 py-3 sm:py-4 bg-gray-900 border border-gray-700 hover:bg-gray-800 hover:border-gray-600 text-gray-300 font-light text-xs sm:text-sm uppercase tracking-widest rounded-none transition-all duration-300 w-full sm:w-auto"
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                         >
@@ -614,7 +614,7 @@ export default function ApocalypseStory() {
 
                         <motion.a
                             href="/dashboard"
-                            className="px-12 py-4 bg-gray-800 border border-gray-600 hover:bg-gray-700 hover:border-gray-500 text-gray-300 font-light text-sm uppercase tracking-widest rounded-none transition-all duration-300"
+                            className="px-6 sm:px-12 py-3 sm:py-4 bg-gray-800 border border-gray-600 hover:bg-gray-700 hover:border-gray-500 text-gray-300 font-light text-xs sm:text-sm uppercase tracking-widest rounded-none transition-all duration-300 w-full sm:w-auto inline-block text-center"
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
                         >
@@ -624,7 +624,7 @@ export default function ApocalypseStory() {
 
                     {/* Footer discreto */}
                     <motion.p
-                        className="text-center text-gray-700 text-xs mt-12 font-mono uppercase tracking-wider"
+                        className="text-center text-gray-700 text-xs mt-8 sm:mt-12 font-mono uppercase tracking-wider px-4"
                         initial={{ opacity: 0 }}
                         animate={{ opacity: 1 }}
                         transition={{ delay: 2.5, duration: 1 }}
@@ -657,10 +657,10 @@ export default function ApocalypseStory() {
             </Canvas>
 
             {/* Controles superiores */}
-            <div className="absolute top-6 right-6 flex gap-2 z-20">
+            <div className="absolute top-4 right-4 sm:top-6 sm:right-6 flex gap-2 z-20">
                 <button
                     onClick={() => setAudioEnabled(!audioEnabled)}
-                    className="px-4 py-2 bg-gray-950/40 text-gray-500 rounded-none hover:bg-gray-900/60 hover:text-gray-400 transition-all backdrop-blur-sm border border-gray-800/50 text-xs font-mono uppercase tracking-wider"
+                    className="px-2 sm:px-4 py-1.5 sm:py-2 bg-gray-950/40 text-gray-500 rounded-none hover:bg-gray-900/60 hover:text-gray-400 transition-all backdrop-blur-sm border border-gray-800/50 text-[10px] sm:text-xs font-mono uppercase tracking-wider"
                     title={audioEnabled ? "Silenciar" : "Activar sonido"}
                 >
                     {audioEnabled ? "Audio On" : "Audio Off"}
@@ -669,20 +669,20 @@ export default function ApocalypseStory() {
                     onClick={() => {
                         setShowCredits(true);
                     }}
-                    className="px-4 py-2 bg-gray-950/40 text-gray-500 rounded-none hover:bg-gray-900/60 hover:text-gray-400 transition-all backdrop-blur-sm border border-gray-800/50 text-xs font-mono uppercase tracking-wider"
+                    className="px-2 sm:px-4 py-1.5 sm:py-2 bg-gray-950/40 text-gray-500 rounded-none hover:bg-gray-900/60 hover:text-gray-400 transition-all backdrop-blur-sm border border-gray-800/50 text-[10px] sm:text-xs font-mono uppercase tracking-wider"
                 >
                     Saltar
                 </button>
             </div>
 
             {/* Indicador de progreso */}
-            <div className="fixed bottom-6 right-6 text-gray-700 font-mono text-xs z-20 uppercase tracking-widest">
+            <div className="fixed bottom-4 right-4 sm:bottom-6 sm:right-6 text-gray-700 font-mono text-[10px] sm:text-xs z-20 uppercase tracking-widest">
                 Sección {currentScene + 1} / {STORY_SCENES.length}
             </div>
 
             {/* Panel de telemetría */}
             {currentScene >= 2 && (
-                <div className="fixed bottom-20 left-10 text-left font-mono text-green-400 text-sm space-y-1 opacity-70 z-20">
+                <div className="fixed bottom-16 sm:bottom-20 left-4 sm:left-10 text-left font-mono text-green-400 text-[10px] sm:text-sm space-y-0.5 sm:space-y-1 opacity-70 z-20">
                     <p>[ SISTEMA DE SEGUIMIENTO ACTIVO ]</p>
                     <p>OBJETIVO: {METEORITE_DATA.name}</p>
                     <p>DIÁMETRO: {METEORITE_DATA.diameter_km} km</p>

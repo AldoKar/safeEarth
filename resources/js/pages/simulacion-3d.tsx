@@ -184,6 +184,8 @@ interface RocketTrajectoryPropsExtended {
 function RocketTrajectory({ points, currentTime, launchTime }: RocketTrajectoryPropsExtended) {
     if (!points || points.length === 0) return null;
 
+    const { scene: rocketModel } = useGLTF('/models/satellite.gltf');
+
     const positions = points.map(p => [
         (p.x / 1e7) * 50,
         (p.y / 1e7) * 50,
@@ -220,16 +222,13 @@ function RocketTrajectory({ points, currentTime, launchTime }: RocketTrajectoryP
                 transparent
             />
             
-            {/* Cohete - esfera azul */}
+            {/* Cohete - modelo 3D */}
             {isLaunched && (
-                <mesh position={scaledPosition}>
-                    <sphereGeometry args={[4, 32, 32]} />
-                    <meshStandardMaterial
-                        color="#3b82f6"
-                        emissive="#3b82f6"
-                        emissiveIntensity={1.5}
-                    />
-                </mesh>
+                <primitive 
+                    object={rocketModel.clone()} 
+                    position={scaledPosition}
+                    scale={0.6}
+                />
             )}
         </>
     );
@@ -287,7 +286,7 @@ function SatelliteTrajectory({ satellite, currentTime }: SatelliteTrajectoryProp
             
             {/* Satélite verde - visible después del deploy */}
             <mesh position={scaledPosition}>
-                <sphereGeometry args={[4, 32, 32]} />
+                <sphereGeometry args={[.25, 32, 32]} />
                 <meshStandardMaterial
                     color="#22c55e"
                     emissive="#22c55e"
