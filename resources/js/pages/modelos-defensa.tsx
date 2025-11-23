@@ -2,7 +2,7 @@ import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Stars, PerspectiveCamera } from '@react-three/drei';
+import { OrbitControls, Stars, PerspectiveCamera, Grid } from '@react-three/drei';
 import { Suspense } from 'react';
 import SpaceshipModel from '@/components/SpaceshipModel';
 import { Button } from '@/components/ui/button';
@@ -24,36 +24,30 @@ const defenseModels = [
         title: 'Sistema de Interceptación',
         description: 'Tecnología de misiles para interceptar asteroides',
         modelPath: '/models/rocket.gltf',
+        scale: 0.05,
+        position: [2, -3, 0] as [number, number, number],
+        cameraPosition: [0, 0, 10] as [number, number, number],
+        target: [0, -1, 0] as [number, number, number],
     },
     {
         id: 2,
         title: 'Deflexión por Impacto',
         description: 'Cambio de trayectoria mediante colisión controlada',
-        modelPath: '/models/rocket.gltf',
+        modelPath: '/models/spaceship.gltf',
+        scale: .01,
+        position: [-10, -5, -25] as [number, number, number],
+        cameraPosition: [0, 0, 10] as [number, number, number],
+        target: [0, 0, 0] as [number, number, number],
     },
     {
         id: 3,
         title: 'Tractores Gravitacionales',
         description: 'Uso de gravedad artificial para desviar objetos',
-        modelPath: '/models/rocket.gltf',
-    },
-    {
-        id: 4,
-        title: 'Sistema de Alerta Temprana',
-        description: 'Detección y seguimiento de amenazas espaciales',
-        modelPath: '/models/rocket.gltf',
-    },
-    {
-        id: 5,
-        title: 'Láser de Alta Potencia',
-        description: 'Vaporización de superficie para alterar trayectoria',
-        modelPath: '/models/rocket.gltf',
-    },
-    {
-        id: 6,
-        title: 'Explosión Nuclear',
-        description: 'Detonación controlada para fragmentar o desviar',
-        modelPath: '/models/rocket.gltf',
+        modelPath: '/models/satellite.gltf',
+        scale: 0.6,
+        position: [0, 0.5, 0] as [number, number, number],
+        cameraPosition: [2, 1, 8] as [number, number, number],
+        target: [0, 0.5, 0] as [number, number, number],
     },
 ];
 
@@ -73,7 +67,7 @@ export default function ModelosDefensa() {
                     </div>
                 </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div className="grid grid-cols-1 gap-6">
                     {defenseModels.map((model) => {
                         return (
                             <div
@@ -82,7 +76,7 @@ export default function ModelosDefensa() {
                             >
                                 {/* 3D Model Canvas */}
                                 <div className="relative h-64 bg-black">
-                                    <Canvas camera={{ position: [0, 0, 10]}}>
+                                    <Canvas camera={{ position: model.cameraPosition }}>
                                         <Suspense fallback={
                                             <mesh>
                                                 <boxGeometry args={[1, 1, 1]} />
@@ -95,19 +89,34 @@ export default function ModelosDefensa() {
                                             <directionalLight position={[-5, -5, -5]} intensity={2} />
                                             <pointLight position={[0, 10, 0]} intensity={2} />
                                     
-                                            {model.id === 1 && (
+                                            {/* Grid */}
+                                            <Grid 
+                                                args={[20, 20]}
+                                                cellSize={0.5}
+                                                cellThickness={0.5}
+                                                cellColor="#6b7280"
+                                                sectionSize={2}
+                                                sectionThickness={1}
+                                                sectionColor="#9ca3af"
+                                                fadeDistance={25}
+                                                fadeStrength={1}
+                                                followCamera={false}
+                                                infiniteGrid={false}
+                                            />
+
+                                            {(model.id === 1 || model.id === 2 || model.id === 3) && (
                                                 <SpaceshipModel 
                                                     modelPath={model.modelPath}
-                                                    scale={0.05}
-                                                    position={[0, -1, 0]}
-                                                    rotate={true}
+                                                    scale={model.scale}
+                                                    position={model.position}
+                                                    rotate={false}
                                                 />
                                             )}
                                             
                                             <OrbitControls 
                                                 enableZoom={true}
                                                 enablePan={true}
-                                                target={[0, 0, 0]}
+                                                target={model.target}
                                                 minDistance={0.5}
                                                 maxDistance={20}
     
