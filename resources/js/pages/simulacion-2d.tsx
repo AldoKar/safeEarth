@@ -12,6 +12,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import * as THREE from 'three';
+import EarthDayMap from '@/../../resources/assets/textures/8k_earth_daymap.jpg';
+import EarthNormalMap from '@/../../resources/assets/textures/8k_earth_normal_map.jpg';
+import EarthSpecularMap from '@/../../resources/assets/textures/8k_earth_specular_map.jpg';
+import EarthCloudsMap from '@/../../resources/assets/textures/8k_earth_clouds.jpg';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -37,11 +42,125 @@ interface KeplerData {
 
 export default function Simulacion2D() {
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const earth3DRef = useRef<HTMLDivElement>(null);
     const [orbitData, setOrbitData] = useState<OrbitPoint[]>([]);
     const [currentFrame, setCurrentFrame] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
     const [speed, setSpeed] = useState(1);
-    const animationRef = useRef<number>();
+    const animationRef = useRef<number | undefined>(undefined);
+    const threeSceneRef = useRef<{
+        scene: THREE.Scene;
+        camera: THREE.PerspectiveCamera;
+        renderer: THREE.WebGLRenderer;
+        earthMesh: THREE.Mesh;
+        cloudsMesh: THREE.Mesh;
+    } | null>(null);
+
+    // Inicializar escena 3D de la Tierra
+    useEffect(() => {
+        const container = earth3DRef.current;
+        if (!container) return;
+
+        // Crear escena
+        const scene = new THREE.Scene();
+        
+        // Crear cámara
+        const camera = new THREE.PerspectiveCamera(
+            45,
+            1, 
+            0.1,
+            1000
+        );
+        camera.position.set(0, 0, 3);
+
+        // Crear renderer
+        const renderer = new THREE.WebGLRenderer({ 
+            alpha: true, 
+            antialias: true 
+        });
+        const size = 40;
+        renderer.setSize(size, size);
+        renderer.setClearColor(0x000000, 0); // Transparente
+        container.appendChild(renderer.domElement);
+
+        // Luz principal más intensa
+        const light = new THREE.PointLight(0xffffff, 4, 100);
+        light.position.set(5, 0, 5);
+        scene.add(light);
+
+        // Luz ambiental más brillante
+        const ambientLight = new THREE.AmbientLight(0xffffff, 1.5);
+        scene.add(ambientLight);
+
+        // Luz de relleno adicional
+        const fillLight = new THREE.PointLight(0xaabbff, 1, 100);
+        fillLight.position.set(-5, 0, 3);
+        scene.add(fillLight);
+
+        // Cargar texturas
+        const textureLoader = new THREE.TextureLoader();
+        const earthGeometry = new THREE.SphereGeometry(1, 32, 32);
+
+        // Crear mesh de la Tierra con más brillo
+        const earthMaterial = new THREE.MeshStandardMaterial({
+            map: textureLoader.load(EarthDayMap),
+            normalMap: textureLoader.load(EarthNormalMap),
+            metalnessMap: textureLoader.load(EarthSpecularMap),
+            metalness: 0.3,
+            roughness: 0.5,
+            emissive: 0x111111,
+            emissiveIntensity: 0.2,
+        });
+        const earthMesh = new THREE.Mesh(earthGeometry, earthMaterial);
+        earthMesh.rotation.z = -0.3;
+        scene.add(earthMesh);
+
+        // Crear mesh de nubes
+        const cloudGeometry = new THREE.SphereGeometry(1.01, 32, 32);
+        const cloudMaterial = new THREE.MeshPhongMaterial({
+            map: textureLoader.load(EarthCloudsMap),
+            transparent: true,
+            opacity: 0.4,
+            depthWrite: false,
+            side: THREE.DoubleSide,
+        });
+        const cloudsMesh = new THREE.Mesh(cloudGeometry, cloudMaterial);
+        cloudsMesh.rotation.z = -0.3;
+        scene.add(cloudsMesh);
+
+        // Guardar referencia
+        threeSceneRef.current = {
+            scene,
+            camera,
+            renderer,
+            earthMesh,
+            cloudsMesh,
+        };
+
+        // Animación de rotación
+        let animationId: number;
+        const animate = () => {
+            animationId = requestAnimationFrame(animate);
+            
+            earthMesh.rotation.y += 0.001;
+            cloudsMesh.rotation.y += 0.0012;
+            
+            renderer.render(scene, camera);
+        };
+        animate();
+
+        // Cleanup
+        return () => {
+            cancelAnimationFrame(animationId);
+            renderer.dispose();
+            earthGeometry.dispose();
+            cloudGeometry.dispose();
+            earthMaterial.dispose();
+            cloudMaterial.dispose();
+            container.removeChild(renderer.domElement);
+            threeSceneRef.current = null;
+        };
+    }, []);
 
     useEffect(() => {
         // Cargar datos de la simulación
@@ -109,12 +228,12 @@ export default function Simulacion2D() {
                 ctx.fillRect(0, 0, width, height);
             }
 
-            // Encontrar escala
+            // Encontrar escala con zoom in para ver más cerca
             const maxDistance = Math.max(
                 ...orbitData.map((p) => Math.abs(p.x_orb)),
                 ...orbitData.map((p) => Math.abs(p.y_orb)),
             );
-            const scale = Math.min(width, height) / (2 * maxDistance) / 1.2;
+            const scale = Math.min(width, height) / (2 * maxDistance) / 0.8; 
 
             // Centro del canvas
             const centerX = width / 2;
@@ -146,57 +265,16 @@ export default function Simulacion2D() {
             ctx.stroke();
             ctx.setLineDash([]);
 
-            // Dibujar la Tierra (centro)
-            const earthRadius = 18;
+            // La Tierra 3D se renderiza en un div superpuesto
+            const earthRadius = 20; // Radio de referencia
             
-            // Océanos (fondo azul)
-            const oceanGradient = ctx.createRadialGradient(
-                centerX - 3,
-                centerY - 3,
-                0,
-                centerX,
-                centerY,
-                earthRadius,
-            );
-            oceanGradient.addColorStop(0, '#4fa3d1');
-            oceanGradient.addColorStop(0.5, '#2b7da8');
-            oceanGradient.addColorStop(1, '#1a5a7c');
-            ctx.fillStyle = oceanGradient;
-            ctx.beginPath();
-            ctx.arc(centerX, centerY, earthRadius, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Continentes (verde)
-            ctx.fillStyle = '#5a9a5a';
-            // Continente 1
-            ctx.beginPath();
-            ctx.arc(centerX - 6, centerY + 4, 4, 0, Math.PI * 2);
-            ctx.fill();
-            // Continente 2
-            ctx.beginPath();
-            ctx.arc(centerX + 5, centerY - 3, 5, 0, Math.PI * 2);
-            ctx.fill();
-            // Continente 3 (pequeño)
-            ctx.beginPath();
-            ctx.arc(centerX - 2, centerY - 8, 3, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Nubes (blanco semi-transparente)
-            ctx.fillStyle = 'rgba(255, 255, 255, 0.4)';
-            ctx.beginPath();
-            ctx.arc(centerX + 8, centerY + 2, 3, 0, Math.PI * 2);
-            ctx.fill();
-            ctx.beginPath();
-            ctx.arc(centerX - 8, centerY - 2, 2.5, 0, Math.PI * 2);
-            ctx.fill();
-
-            // Atmósfera (glow azul suave)
+            // Atmósfera (glow azul suave alrededor de la Tierra 3D)
             ctx.shadowBlur = 15;
-            ctx.shadowColor = 'rgba(100, 180, 255, 0.6)';
-            ctx.strokeStyle = 'rgba(100, 180, 255, 0.3)';
-            ctx.lineWidth = 3;
+            ctx.shadowColor = 'rgba(100, 180, 255, 0.5)';
+            ctx.strokeStyle = 'rgba(100, 180, 255, 0.25)';
+            ctx.lineWidth = 2;
             ctx.beginPath();
-            ctx.arc(centerX, centerY, earthRadius + 2, 0, Math.PI * 2);
+            ctx.arc(centerX, centerY, earthRadius + 3, 0, Math.PI * 2);
             ctx.stroke();
             ctx.shadowBlur = 0;
 
@@ -437,10 +515,24 @@ export default function Simulacion2D() {
                 <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 flex-1">
                     <div className="lg:col-span-3">
                         <Card className="h-full">
-                            <CardContent className="p-0 h-full">
+                            <CardContent className="p-0 h-full relative">
                                 <canvas
                                     ref={canvasRef}
                                     className="w-full h-full rounded-lg"
+                                />
+                                {/* Contenedor del modelo 3D de la Tierra - posicionado en el centro */}
+                                <div
+                                    ref={earth3DRef}
+                                    className="absolute"
+                                    style={{
+                                        left: '50%',
+                                        top: '50%',
+                                        transform: 'translate(-50%, -50%)',
+                                        width: '40px',
+                                        height: '40px',
+                                        pointerEvents: 'none',
+                                        zIndex: 10,
+                                    }}
                                 />
                             </CardContent>
                         </Card>
