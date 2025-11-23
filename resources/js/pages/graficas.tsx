@@ -176,11 +176,29 @@ export default function Graficas() {
     }
 
     // Obtener el próximo acercamiento (el más cercano en el futuro o el último registrado)
-    const nextApproach =
-        meteoriteData.close_approach_data.find(
-            (approach) =>
-                new Date(approach.close_approach_date) > new Date(),
-        ) || meteoriteData.close_approach_data[0];
+    // Protegemos contra datos faltantes para evitar errores en producción.
+    const approaches = Array.isArray(meteoriteData?.close_approach_data)
+        ? meteoriteData.close_approach_data
+        : [];
+
+    const nextApproach = approaches.length > 0
+        ? (approaches.find((approach) => new Date(approach.close_approach_date) > new Date()) || approaches[0])
+        : {
+            // Valores por defecto seguros cuando no hay datos de acercamiento
+            close_approach_date: meteoriteData?.orbital_data?.first_observation_date ?? new Date().toISOString().split('T')[0],
+            relative_velocity: {
+                kilometers_per_second: '0',
+                kilometers_per_hour: '0',
+                miles_per_hour: '0',
+            },
+            miss_distance: {
+                astronomical: '0',
+                lunar: '0',
+                kilometers: '0',
+                miles: '0',
+            },
+            orbiting_body: 'Earth',
+        };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
