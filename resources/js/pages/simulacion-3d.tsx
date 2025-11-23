@@ -1,11 +1,11 @@
 import AppLayout from '@/layouts/app-layout';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { OrbitControls, useGLTF } from '@react-three/drei';
+import { Canvas, useFrame, useLoader } from '@react-three/fiber';
+import { OrbitControls, useGLTF, Stars } from '@react-three/drei';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import Earth from '../../assets/Planets/Earth';
+import { Physics, RigidBody, RapierRigidBody, CuboidCollider } from '@react-three/rapier';
 import {
     Card,
     CardContent,
@@ -16,6 +16,11 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+
+import EarthDayMap from "../../assets/textures/8k_earth_daymap.jpg"
+import EarthNormalMap from "../../assets/textures/8k_earth_normal_map.jpg"
+import EarthSpecularMap from '../../assets/textures/8k_earth_specular_map.jpg'
+import EarthCloudsMap from '../../assets/textures/8k_earth_clouds.jpg'
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -44,6 +49,110 @@ interface KeplerAPIResponse {
         destroyed: boolean;
     };
     data: OrbitPoint[];
+}
+
+function EarthSmall() {
+    const [colorMap, normalMap, specularMap, cloudsMap] = useLoader(THREE.TextureLoader, [
+        EarthDayMap,
+        EarthNormalMap,
+        EarthSpecularMap,
+        EarthCloudsMap
+    ]);
+
+    const earthRef = useRef<THREE.Mesh>(null!);
+    const cloudsRef = useRef<THREE.Mesh>(null!);
+
+    useFrame(({ clock }) => {
+        const elapsedTime = clock.getElapsedTime();
+        if (earthRef.current) earthRef.current.rotation.y = elapsedTime / 16;
+        if (cloudsRef.current) cloudsRef.current.rotation.y = elapsedTime / 16;
+    });
+
+    return (
+        <>
+            <pointLight color="#ebe0c1" position={[2, 0, 5]} intensity={12} />
+            
+            <mesh ref={cloudsRef}>
+                <sphereGeometry args={[0.705, 32, 32]} />
+                <meshPhongMaterial
+                    map={cloudsMap}
+                    opacity={0.4}
+                    depthWrite={true}
+                    transparent={true}
+                    side={THREE.DoubleSide}
+                />
+            </mesh>
+
+            <mesh ref={earthRef}>
+                <sphereGeometry args={[0.705, 32, 32]} />
+                <meshPhongMaterial specularMap={specularMap} />
+                <meshStandardMaterial
+                    map={colorMap}
+                    normalMap={normalMap}
+                    metalness={0.4}
+                    roughness={0.7}
+                />
+            </mesh>
+        </>
+    );
+}
+
+interface DebrisProps {
+    position: [number, number, number];
+}
+
+function Debris({ position }: DebrisProps) {
+    return (
+        <RigidBody position={position} linearVelocity={[
+            (Math.random() - 0.5) * 2,
+            (Math.random() - 0.5) * 2,
+            (Math.random() - 0.5) * 2
+        ]}>
+            <CuboidCollider args={[0.02, 0.02, 0.02]} />
+            <mesh>
+                <sphereGeometry args={[0.02, 8, 8]} />
+                <meshStandardMaterial color="#666" />
+            </mesh>
+        </RigidBody>
+    );
+}
+
+function AsteroidWithPhysics({ position, onCollision }: { position: [number, number, number], onCollision: () => void }) {
+    const gltf = useGLTF('/models/asteroid.gltf');
+    const meshRef = useRef<THREE.Group>(null);
+    const rigidBodyRef = useRef<RapierRigidBody>(null);
+
+    useEffect(() => {
+        gltf.scene.traverse((child) => {
+            if ((child as THREE.Mesh).isMesh) {
+                const mesh = child as THREE.Mesh;
+                if (mesh.material) {
+                    const material = mesh.material as THREE.MeshStandardMaterial;
+                    material.metalness = 0.1;
+                    material.roughness = 0.9;
+                    material.color.setRGB(0.4, 0.4, 0.4);
+                    material.needsUpdate = true;
+                }
+            }
+        });
+    }, [gltf]);
+
+    useFrame(() => {
+        if (meshRef.current) {
+            meshRef.current.rotation.y += 0.005;
+        }
+    });
+
+    return (
+        <RigidBody 
+            ref={rigidBodyRef}
+            position={position}
+            onCollisionEnter={onCollision}
+        >
+            <CuboidCollider args={[0.05, 0.05, 0.05]} />
+            <primitive ref={meshRef} object={gltf.scene} scale={0.0005} />
+        </RigidBody>
+    );
 }
 
 function AsteroidModel({ position }: { position: [number, number, number] }) {
@@ -84,7 +193,7 @@ function OrbitPath({ points }: { points: OrbitPoint[] }) {
         points.forEach((point, i) => {
             positions[i * 3] = point.x_m / 1e7;
             positions[i * 3 + 1] = point.y_m / 1e7;
-            positions[i * 3 + 2] = (point.z_m || 0) / 1e7;
+            positions[i * 3 + 2] = (point.z_m || 0) / 1e7 + 3;
         });
 
         if (lineRef.current) {
@@ -109,7 +218,30 @@ export default function Simulacion3D() {
     const [isPlaying, setIsPlaying] = useState(false);
     const [speed, setSpeed] = useState(1);
     const [isLoading, setIsLoading] = useState(true);
+    const [hasCollided, setHasCollided] = useState(false);
+    const [debrisPositions, setDebrisPositions] = useState<[number, number, number][]>([]);
     const animationRef = useRef<number | undefined>(undefined);
+
+    const handleCollision = () => {
+        if (!hasCollided) {
+            setHasCollided(true);
+            setIsPlaying(false);
+            
+            // Generar fragmentos de meteorito
+            const fragments: [number, number, number][] = [];
+            const asteroidPos = asteroidPosition;
+            for (let i = 0; i < 20; i++) {
+                const angle = (Math.PI * 2 * i) / 20;
+                const radius = 0.3;
+                fragments.push([
+                    asteroidPos[0] + Math.cos(angle) * radius,
+                    asteroidPos[1] + Math.sin(angle) * radius,
+                    asteroidPos[2] + (Math.random() - 0.5) * radius
+                ]);
+            }
+            setDebrisPositions(fragments);
+        }
+    };
 
     useEffect(() => {
         setIsLoading(true);
@@ -170,7 +302,7 @@ export default function Simulacion3D() {
 
     const currentPoint = orbitData.length > 0 ? orbitData[currentFrame] : null;
     const asteroidPosition: [number, number, number] = currentPoint
-        ? [currentPoint.x_m / 1e7, currentPoint.y_m / 1e7, (currentPoint.z_m || 0) / 1e7]
+        ? [currentPoint.x_m / 1e7, currentPoint.y_m / 1e7, (currentPoint.z_m || 0) / 1e7 + 3]
         : [3, 1, 3];
 
     return (
@@ -220,11 +352,30 @@ export default function Simulacion3D() {
                                 ) : (
                                     <div className="w-full h-full min-h-[500px] bg-black rounded-lg">
                                         <Canvas>
-                                            <Earth />
-                                            <AsteroidModel position={asteroidPosition} />
+                                            <ambientLight intensity={1.5} />
+                                            <Stars />
+                                            
                                             {orbitData.length > 0 && (
                                                 <OrbitPath points={orbitData} />
                                             )}
+                                            
+                                            <Physics gravity={[0, 0, 0]}>
+                                                <RigidBody type="fixed" position={[0, 0, 3]}>
+                                                    <CuboidCollider args={[0.705, 0.705, 0.705]} />
+                                                    <EarthSmall />
+                                                </RigidBody>
+                                                
+                                                {!hasCollided && (
+                                                    <AsteroidWithPhysics 
+                                                        position={asteroidPosition} 
+                                                        onCollision={handleCollision}
+                                                    />
+                                                )}
+                                                
+                                                {hasCollided && debrisPositions.map((pos, i) => (
+                                                    <Debris key={i} position={pos} />
+                                                ))}
+                                            </Physics>
                                             
                                             <OrbitControls 
                                                 enableZoom={true}

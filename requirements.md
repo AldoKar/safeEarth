@@ -13,3 +13,6 @@ composer require guzzlehttp/guzzle
 npm install html2canvas
 npm install react-markdown
 npm install lucide-react
+
+npm i @react-three/rapier
+npx shadcn@latest add chart

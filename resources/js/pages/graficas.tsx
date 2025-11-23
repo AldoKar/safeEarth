@@ -12,6 +12,18 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { useEffect, useState } from 'react';
 import meteoritoImage from '@/../../resources/assets/textures/meteorito.jpeg';
+import {
+    ResizablePanelGroup,
+    ResizablePanel,
+    ResizableHandle,
+} from '@/components/ui/resizable';
+import {
+    ChartConfig,
+    ChartContainer,
+    ChartTooltip,
+    ChartTooltipContent,
+} from '@/components/ui/chart';
+import { Bar, BarChart, CartesianGrid, XAxis, YAxis, Line, LineChart, Area, AreaChart, RadialBar, RadialBarChart, PolarGrid, PolarRadiusAxis } from 'recharts';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -171,7 +183,272 @@ export default function Graficas() {
                     </CardHeader>
                 </Card>
 
-                <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 flex-1">
+                <ResizablePanelGroup direction="horizontal" className="flex-1 gap-4">
+                    <ResizablePanel defaultSize={0} minSize={0}>
+                        <div className="h-full overflow-auto pr-2">
+                            <div className="space-y-4">
+                                {/* Gráfica de Diámetro Estimado */}
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Diámetro Estimado</CardTitle>
+                                        <CardDescription>
+                                            Comparación de tamaños en diferentes unidades
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <ChartContainer
+                                            config={{
+                                                min: {
+                                                    label: "Mínimo",
+                                                    color: "#1e40af",
+                                                },
+                                                max: {
+                                                    label: "Máximo",
+                                                    color: "#1e40af",
+                                                },
+                                            }}
+                                            className="h-[300px]"
+                                        >
+                                            <BarChart
+                                                data={[
+                                                    {
+                                                        unit: "Kilómetros",
+                                                        min: meteoriteData.estimated_diameter.kilometers.estimated_diameter_min,
+                                                        max: meteoriteData.estimated_diameter.kilometers.estimated_diameter_max,
+                                                    },
+                                                    {
+                                                        unit: "Metros",
+                                                        min: meteoriteData.estimated_diameter.meters.estimated_diameter_min / 1000,
+                                                        max: meteoriteData.estimated_diameter.meters.estimated_diameter_max / 1000,
+                                                    },
+                                                    {
+                                                        unit: "Millas",
+                                                        min: meteoriteData.estimated_diameter.miles.estimated_diameter_min,
+                                                        max: meteoriteData.estimated_diameter.miles.estimated_diameter_max,
+                                                    },
+                                                ]}
+                                            >
+                                                <CartesianGrid strokeDasharray="3 3" />
+                                                <XAxis dataKey="unit" />
+                                                <YAxis />
+                                                <ChartTooltip content={<ChartTooltipContent />} />
+                                                <Bar dataKey="min" fill="var(--color-min)" radius={4} />
+                                                <Bar dataKey="max" fill="var(--color-max)" radius={4} />
+                                            </BarChart>
+                                        </ChartContainer>
+                                    </CardContent>
+                                </Card>
+
+                                {/* Gráfica de Velocidad Relativa */}
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Velocidad Relativa</CardTitle>
+                                        <CardDescription>
+                                            Diferentes mediciones de velocidad
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <ChartContainer
+                                            config={{
+                                                velocity: {
+                                                    label: "Velocidad",
+                                                    color: "#1e40af",
+                                                },
+                                            }}
+                                            className="h-[250px]"
+                                        >
+                                            <AreaChart
+                                                data={[
+                                                    {
+                                                        name: "km/s",
+                                                        velocity: parseFloat(nextApproach.relative_velocity.kilometers_per_second),
+                                                    },
+                                                    {
+                                                        name: "km/h",
+                                                        velocity: parseFloat(nextApproach.relative_velocity.kilometers_per_hour) / 1000,
+                                                    },
+                                                    {
+                                                        name: "mph",
+                                                        velocity: parseFloat(nextApproach.relative_velocity.miles_per_hour) / 1000,
+                                                    },
+                                                ]}
+                                            >
+                                                <CartesianGrid strokeDasharray="3 3" />
+                                                <XAxis dataKey="name" />
+                                                <YAxis />
+                                                <ChartTooltip content={<ChartTooltipContent />} />
+                                                <Area
+                                                    type="monotone"
+                                                    dataKey="velocity"
+                                                    stroke="var(--color-velocity)"
+                                                    fill="var(--color-velocity)"
+                                                    fillOpacity={0.6}
+                                                />
+                                            </AreaChart>
+                                        </ChartContainer>
+                                    </CardContent>
+                                </Card>
+
+                                {/* Gráfica de Datos Orbitales */}
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Parámetros Orbitales</CardTitle>
+                                        <CardDescription>
+                                            Características principales de la órbita
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <ChartContainer
+                                            config={{
+                                                value: {
+                                                    label: "Valor",
+                                                    color: "#1e40af",
+                                                },
+                                            }}
+                                            className="h-[300px]"
+                                        >
+                                            <BarChart
+                                                data={[
+                                                    {
+                                                        param: "Excentricidad",
+                                                        value: parseFloat(meteoriteData.orbital_data.eccentricity),
+                                                    },
+                                                    {
+                                                        param: "Semieje Mayor (AU)",
+                                                        value: parseFloat(meteoriteData.orbital_data.semi_major_axis),
+                                                    },
+                                                    {
+                                                        param: "Inclinación (°/10)",
+                                                        value: parseFloat(meteoriteData.orbital_data.inclination) / 10,
+                                                    },
+                                                    {
+                                                        param: "Período (días/100)",
+                                                        value: parseFloat(meteoriteData.orbital_data.orbital_period) / 100,
+                                                    },
+                                                ]}
+                                                layout="vertical"
+                                            >
+                                                <CartesianGrid strokeDasharray="3 3" />
+                                                <XAxis type="number" />
+                                                <YAxis dataKey="param" type="category" width={150} />
+                                                <ChartTooltip content={<ChartTooltipContent />} />
+                                                <Bar dataKey="value" fill="var(--color-value)" radius={4} />
+                                            </BarChart>
+                                        </ChartContainer>
+                                    </CardContent>
+                                </Card>
+
+                                {/* Gráfica Radial de Peligrosidad */}
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Nivel de Peligrosidad</CardTitle>
+                                        <CardDescription>
+                                            Indicador visual de amenaza
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <ChartContainer
+                                            config={{
+                                                hazard: {
+                                                    label: "Peligrosidad",
+                                                    color: meteoriteData.is_potentially_hazardous_asteroid 
+                                                        ? "hsl(var(--destructive))" 
+                                                        : "#1e40af",
+                                                },
+                                            }}
+                                            className="h-[250px]"
+                                        >
+                                            <RadialBarChart
+                                                data={[
+                                                    {
+                                                        name: "Peligro",
+                                                        value: meteoriteData.is_potentially_hazardous_asteroid ? 85 : 25,
+                                                        fill: meteoriteData.is_potentially_hazardous_asteroid 
+                                                            ? "hsl(var(--destructive))" 
+                                                            : "#1e40af",
+                                                    },
+                                                ]}
+                                                innerRadius="60%"
+                                                outerRadius="100%"
+                                                startAngle={90}
+                                                endAngle={450}
+                                            >
+                                                <PolarGrid gridType="circle" />
+                                                <RadialBar dataKey="value" cornerRadius={10} />
+                                                <PolarRadiusAxis tick={false} axisLine={false}>
+                                                    <text
+                                                        x="50%"
+                                                        y="50%"
+                                                        textAnchor="middle"
+                                                        dominantBaseline="middle"
+                                                        className="fill-foreground text-3xl font-bold"
+                                                    >
+                                                        {meteoriteData.is_potentially_hazardous_asteroid ? "ALTO" : "BAJO"}
+                                                    </text>
+                                                </PolarRadiusAxis>
+                                            </RadialBarChart>
+                                        </ChartContainer>
+                                    </CardContent>
+                                </Card>
+
+                                {/* Gráfica de Distancia de Acercamiento */}
+                                <Card>
+                                    <CardHeader>
+                                        <CardTitle>Distancia de Acercamiento</CardTitle>
+                                        <CardDescription>
+                                            Comparación en diferentes escalas
+                                        </CardDescription>
+                                    </CardHeader>
+                                    <CardContent>
+                                        <ChartContainer
+                                            config={{
+                                                distance: {
+                                                    label: "Distancia",
+                                                    color: "#1e40af",
+                                                },
+                                            }}
+                                            className="h-[250px]"
+                                        >
+                                            <LineChart
+                                                data={[
+                                                    {
+                                                        unit: "AU",
+                                                        distance: parseFloat(nextApproach.miss_distance.astronomical),
+                                                    },
+                                                    {
+                                                        unit: "Lunar",
+                                                        distance: parseFloat(nextApproach.miss_distance.lunar) / 100,
+                                                    },
+                                                    {
+                                                        unit: "km (M)",
+                                                        distance: parseFloat(nextApproach.miss_distance.kilometers) / 1000000,
+                                                    },
+                                                ]}
+                                            >
+                                                <CartesianGrid strokeDasharray="3 3" />
+                                                <XAxis dataKey="unit" />
+                                                <YAxis />
+                                                <ChartTooltip content={<ChartTooltipContent />} />
+                                                <Line
+                                                    type="monotone"
+                                                    dataKey="distance"
+                                                    stroke="var(--color-distance)"
+                                                    strokeWidth={3}
+                                                    dot={{ r: 6 }}
+                                                />
+                                            </LineChart>
+                                        </ChartContainer>
+                                    </CardContent>
+                                </Card>
+                            </div>
+                        </div>
+                    </ResizablePanel>
+                    
+                    <ResizableHandle className='bg-blue-800 w-1' withHandle />
+                    
+                    <ResizablePanel defaultSize={100} minSize={0}>
+                        <div className="h-full overflow-auto pl-2">
+                            <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                     <div className="space-y-4">
                         <Card>
                             <CardHeader>
@@ -529,6 +806,9 @@ export default function Graficas() {
                         </Card>
                     </div>
                 </div>
+                        </div>
+                    </ResizablePanel>
+                </ResizablePanelGroup>
             </div>
         </AppLayout>
     );
