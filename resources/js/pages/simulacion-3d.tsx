@@ -5,7 +5,7 @@ import { Canvas, useFrame, useLoader } from '@react-three/fiber';
 import { OrbitControls, useGLTF, Stars, Html } from '@react-three/drei';
 import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
-import { Physics, RigidBody, RapierRigidBody, CuboidCollider } from '@react-three/rapier';
+import { Physics, RigidBody, RapierRigidBody, CuboidCollider, BallCollider, interactionGroups } from '@react-three/rapier';
 import {
     Card,
     CardContent,
@@ -16,6 +16,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 
 import EarthDayMap from "../../assets/textures/8k_earth_daymap.jpg"
 import EarthNormalMap from "../../assets/textures/8k_earth_normal_map.jpg"
@@ -80,9 +88,9 @@ function EarthSmall() {
     return (
         <>
             <pointLight color="#ebe0c1" position={[2, 0, 5]} intensity={12} />
-            
+
             <mesh ref={cloudsRef}>
-                <sphereGeometry args={[21.15, 32, 32]} />
+                <sphereGeometry args={[35.25, 32, 32]} />
                 <meshPhongMaterial
                     map={cloudsMap}
                     opacity={0.4}
@@ -93,7 +101,7 @@ function EarthSmall() {
             </mesh>
 
             <mesh ref={earthRef}>
-                <sphereGeometry args={[21.15, 32, 32]} />
+                <sphereGeometry args={[35.25, 32, 32]} />
                 <meshPhongMaterial specularMap={specularMap} />
                 <meshStandardMaterial
                     map={colorMap}
@@ -115,22 +123,21 @@ function Debris({ position }: DebrisProps) {
         <RigidBody position={position} linearVelocity={[
             (Math.random() - 0.5) * 3,
             (Math.random() - 0.5) * 3,
-            (Math.random() - 0.5) * 3
-        ]} collisionGroups={0x00040004}>
-            <CuboidCollider args={[0.6, 0.6, 0.6]} />
+            (Math.random() - 0.5) * 3,
+        ]}>
+            <BallCollider args={[1.0]} />
             <mesh>
-                <sphereGeometry args={[0.6, 8, 8]} />
+                <sphereGeometry args={[1.0, 8, 8]} />
                 <meshStandardMaterial color="#ef4444" emissive="#dc2626" emissiveIntensity={0.5} />
             </mesh>
         </RigidBody>
     );
 }
 
-function AsteroidWithPhysics({ position, onCollision }: { position: [number, number, number], onCollision: () => void }) {
+function AsteroidWithPhysics({ position, onCollision, isSolid }: { position: [number, number, number], onCollision: () => void, isSolid: boolean }) {
     const gltf = useGLTF('/models/asteroid.gltf');
     const meshRef = useRef<THREE.Group>(null);
     const rigidBodyRef = useRef<RapierRigidBody>(null);
-    const [collisionEnabled, setCollisionEnabled] = useState(false);
 
     useEffect(() => {
         gltf.scene.traverse((child) => {
@@ -145,13 +152,6 @@ function AsteroidWithPhysics({ position, onCollision }: { position: [number, num
                 }
             }
         });
-        
-        // Enable collision detection after 100ms to avoid instant collision on spawn
-        const timer = setTimeout(() => {
-            setCollisionEnabled(true);
-        }, 100);
-        
-        return () => clearTimeout(timer);
     }, [gltf]);
 
     useFrame(() => {
@@ -159,22 +159,16 @@ function AsteroidWithPhysics({ position, onCollision }: { position: [number, num
             meshRef.current.rotation.y += 0.005;
         }
     });
-    
-    const handleCollision = () => {
-        if (collisionEnabled) {
-            onCollision();
-        }
-    };
 
     return (
-        <RigidBody 
+        <RigidBody
             ref={rigidBodyRef}
             position={position}
-            onCollisionEnter={handleCollision}
-            collisionGroups={0x00010002}
+            onCollisionEnter={onCollision}
+            sensor={!isSolid}
         >
-            <CuboidCollider args={[1.5, 1.5, 1.5]} />
-            <primitive ref={meshRef} object={gltf.scene} scale={0.015} />
+            <BallCollider args={[1.18]} sensor={!isSolid} />
+            <primitive ref={meshRef} object={gltf.scene} scale={0.008} />
         </RigidBody>
     );
 }
@@ -215,9 +209,9 @@ function OrbitPath({ points }: { points: OrbitPoint[] }) {
 
         const positions = new Float32Array(points.length * 3);
         points.forEach((point, i) => {
-            positions[i * 3] = (point.x_m / 1e7) * 30;
-            positions[i * 3 + 1] = (point.y_m / 1e7) * 30;
-            positions[i * 3 + 2] = (point.z_m / 1e7) * 30;
+            positions[i * 3] = (point.x_m / 1e7) * 50;
+            positions[i * 3 + 1] = (point.y_m / 1e7) * 50;
+            positions[i * 3 + 2] = (point.z_m / 1e7) * 50;
         });
 
         if (lineRef.current) {
@@ -245,19 +239,58 @@ interface HUDProps {
     isPlaying: boolean;
     speed: number;
     hasCollided: boolean;
+    cameraFollow: boolean;
     onPlayPause: () => void;
     onReset: () => void;
     onSpeedChange: (speed: number) => void;
     onFrameChange: (frame: number) => void;
+    onCameraFollowToggle: () => void;
 }
 
-function HUD({ currentPoint, currentFrame, totalFrames, isPlaying, speed, hasCollided, onPlayPause, onReset, onSpeedChange, onFrameChange }: HUDProps) {
+function HUD({ currentPoint, currentFrame, totalFrames, isPlaying, speed, hasCollided, cameraFollow, onPlayPause, onReset, onSpeedChange, onFrameChange, onCameraFollowToggle }: HUDProps) {
+    const [hudPosition, setHudPosition] = useState({ x: 0, y: 0 });
+    const [isDragging, setIsDragging] = useState(false);
+    const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+    const [controlsPosition, setControlsPosition] = useState({ x: 0, y: 0 });
+    const [isControlsDragging, setIsControlsDragging] = useState(false);
+    const [controlsDragStart, setControlsDragStart] = useState({ x: 0, y: 0 });
+
+    const handleMouseDown = (e: React.MouseEvent) => {
+        setIsDragging(true);
+        setDragStart({ x: e.clientX - hudPosition.x, y: e.clientY - hudPosition.y });
+    };
+
+    const handleMouseMove = (e: React.MouseEvent) => {
+        if (isDragging) {
+            setHudPosition({ x: e.clientX - dragStart.x, y: e.clientY - dragStart.y });
+        }
+        if (isControlsDragging) {
+            setControlsPosition({ x: e.clientX - controlsDragStart.x, y: e.clientY - controlsDragStart.y });
+        }
+    };
+
+    const handleMouseUp = () => {
+        setIsDragging(false);
+        setIsControlsDragging(false);
+    };
+
+    const handleControlsMouseDown = (e: React.MouseEvent) => {
+        setIsControlsDragging(true);
+        setControlsDragStart({ x: e.clientX - controlsPosition.x, y: e.clientY - controlsPosition.y });
+    };
+
     return (
         <Html fullscreen>
-            <div className="pointer-events-none absolute inset-0 flex flex-col p-6 text-white">
+            <div
+                className="pointer-events-none absolute inset-0 flex flex-col p-6 text-white"
+                onMouseMove={handleMouseMove}
+                onMouseUp={handleMouseUp}
+            >
                 {/* Real-time data overlay - Top Right */}
                 {currentPoint && (
-                    <div className="ml-auto bg-black/70 backdrop-blur-sm rounded-lg p-4 border border-white/20 max-w-xs pointer-events-auto">
+                    <div
+                        className="ml-auto bg-black/70 backdrop-blur-sm rounded-lg p-4 border border-white/20 max-w-xs pointer-events-auto"
+                    >
                         <h3 className="font-bold mb-2 text-sm">Datos en Tiempo Real</h3>
                         <div className="space-y-2 text-xs">
                             <div className="flex justify-between">
@@ -293,12 +326,35 @@ function HUD({ currentPoint, currentFrame, totalFrames, isPlaying, speed, hasCol
                                 </div>
                             )}
                         </div>
+                        <div className="mt-3 pt-3 border-t border-white/20">
+                            <button
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    onCameraFollowToggle();
+                                }}
+                                className={`w-full px-3 py-2 rounded text-xs font-medium transition-colors ${cameraFollow
+                                        ? 'bg-blue-600 hover:bg-blue-700 text-white'
+                                        : 'bg-white/10 hover:bg-white/20 text-gray-300'
+                                    }`}
+                            >
+                                {cameraFollow ? 'Siguiendo meteorito' : 'Seguir meteorito'}
+                            </button>
+                        </div>
                     </div>
                 )}
 
-                {/* Bottom controls */}
+                {/* Bottom controls (Draggable) */}
                 <div className="mt-auto pointer-events-auto">
-                    <div className="bg-black/70 backdrop-blur-sm rounded-lg p-4 border border-white/20 max-w-md mx-auto">
+                    <div
+                        className="bg-black/70 backdrop-blur-sm rounded-lg p-4 border border-white/20 max-w-md mx-auto"
+                        style={{ transform: `translate(${controlsPosition.x}px, ${controlsPosition.y}px)` }}
+                    >
+                        <div
+                            className="text-xs font-semibold text-gray-300 mb-3 cursor-move select-none text-center"
+                            onMouseDown={handleControlsMouseDown}
+                        >
+                            Controles de Simulación
+                        </div>
                         <div className="flex gap-3 items-center mb-4">
                             <Button
                                 onClick={onPlayPause}
@@ -328,7 +384,7 @@ function HUD({ currentPoint, currentFrame, totalFrames, isPlaying, speed, hasCol
                                 </svg>
                             </Button>
                         </div>
-                        
+
                         <div className="space-y-3">
                             <div>
                                 <label className="text-xs text-gray-300 mb-1 block">
@@ -336,15 +392,16 @@ function HUD({ currentPoint, currentFrame, totalFrames, isPlaying, speed, hasCol
                                 </label>
                                 <input
                                     type="range"
-                                    min="1"
+                                    min="0"
                                     max="5"
+                                    step="0.25"
                                     value={speed}
                                     onChange={(e) => onSpeedChange(Number(e.target.value))}
                                     className="w-full"
                                     disabled={totalFrames === 0}
                                 />
                             </div>
-                            
+
                             <div>
                                 <label className="text-xs text-gray-300 mb-1 block">
                                     Posición en órbita
@@ -372,24 +429,28 @@ export default function Simulacion3D() {
     const [metadata, setMetadata] = useState<KeplerAPIResponse['metadata'] | null>(null);
     const [currentFrame, setCurrentFrame] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
-    const [speed, setSpeed] = useState(1);
+    const [speed, setSpeed] = useState(0.25);
     const [isLoading, setIsLoading] = useState(true);
     const [hasCollided, setHasCollided] = useState(false);
     const [debrisPositions, setDebrisPositions] = useState<[number, number, number][]>([]);
+    const [cameraFollow, setCameraFollow] = useState(false);
+    const [showImpactModal, setShowImpactModal] = useState(false);
+    const [enableAsteroidCollision, setEnableAsteroidCollision] = useState(false);
     const animationRef = useRef<number | undefined>(undefined);
 
     const handleCollision = () => {
         if (!hasCollided) {
             setHasCollided(true);
             setIsPlaying(false);
-            
+            setShowImpactModal(true);
+
             // Generar fragmentos de meteorito
             const fragments: [number, number, number][] = [];
             const asteroidPos = asteroidPosition;
             for (let i = 0; i < 30; i++) {
                 const angle = (Math.PI * 2 * i) / 30;
                 const verticalAngle = (Math.PI * (i % 3)) / 3;
-                const radius = (0.2 + Math.random() * 0.2) * 30;
+                const radius = (0.2 + Math.random() * 0.2) * 50;
                 fragments.push([
                     asteroidPos[0] + Math.cos(angle) * Math.cos(verticalAngle) * radius,
                     asteroidPos[1] + Math.sin(angle) * Math.cos(verticalAngle) * radius,
@@ -408,7 +469,7 @@ export default function Simulacion3D() {
             .then((apiResponse: KeplerAPIResponse) => {
                 console.log('API Response:', apiResponse);
                 console.log('Data length:', apiResponse.data?.length);
-                
+
                 if (apiResponse.data && apiResponse.data.length > 0) {
                     setOrbitData(apiResponse.data);
                     setMetadata(apiResponse.metadata);
@@ -429,11 +490,11 @@ export default function Simulacion3D() {
         if (isPlaying && orbitData.length > 0) {
             let lastTime = Date.now();
             const frameDelay = 50;
-            
+
             const animate = () => {
                 const currentTime = Date.now();
                 const deltaTime = currentTime - lastTime;
-                
+
                 if (deltaTime >= frameDelay / speed) {
                     lastTime = currentTime;
                     setCurrentFrame((prev) => {
@@ -465,17 +526,22 @@ export default function Simulacion3D() {
         setIsPlaying(false);
         setHasCollided(false);
         setDebrisPositions([]);
+        setShowImpactModal(false);
+        setEnableAsteroidCollision(false);
+    };
+
+    // Called by Earth sensor when the asteroid is within proximity
+    const handleAsteroidNear = () => {
+        if (!enableAsteroidCollision) {
+            setEnableAsteroidCollision(true);
+            console.log('Earth sensor: asteroid near — enabling asteroid collisions');
+        }
     };
 
     const currentPoint = orbitData.length > 0 ? orbitData[currentFrame] : null;
     const asteroidPosition: [number, number, number] = currentPoint
-        ? [(currentPoint.x_m / 1e7) * 30, (currentPoint.y_m / 1e7) * 30, (currentPoint.z_m / 1e7) * 30]
-        : [300, 0, 0];
-    
-    // Calculate distance from Earth to check if asteroid is too close at start
-    const distanceFromEarth = currentPoint 
-        ? Math.sqrt(Math.pow(asteroidPosition[0], 2) + Math.pow(asteroidPosition[1], 2) + Math.pow(asteroidPosition[2], 2))
-        : 300;
+        ? [(currentPoint.x_m / 1e7) * 50, (currentPoint.y_m / 1e7) * 50, (currentPoint.z_m / 1e7) * 50]
+        : [500, 0, 0];
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -499,36 +565,40 @@ export default function Simulacion3D() {
                                 <Canvas>
                                     <ambientLight intensity={1.5} />
                                     <Stars radius={500} depth={100} count={10000} factor={6} saturation={0} fade speed={1} />
-                                    
+
                                     {orbitData.length > 0 && (
                                         <OrbitPath points={orbitData} />
                                     )}
-                                    
+
                                     <Physics gravity={[0, 0, 0]}>
-                                        <RigidBody type="fixed" position={[0, 0, 0]} collisionGroups={0x00020001}>
-                                            <CuboidCollider args={[21.15, 21.15, 21.15]} />
+                                        <RigidBody type="fixed" position={[0, 0, 0]}>
+                                            <BallCollider args={[35.25]} />
+                                            {/* Proximity sensor: when an asteroid enters this region, enable asteroid physical collisions */}
+                                            <BallCollider args={[36.5]} sensor onIntersectionEnter={() => handleAsteroidNear()} />
                                             <EarthSmall />
                                         </RigidBody>
-                                        
-                                        {!hasCollided && currentPoint && distanceFromEarth > 30 && (
+
+                                        {!hasCollided && currentPoint && (
                                             <AsteroidWithPhysics
-                                                position={asteroidPosition} 
+                                                position={asteroidPosition}
                                                 onCollision={handleCollision}
+                                                isSolid={enableAsteroidCollision}
                                             />
                                         )}
-                                        
+
                                         {hasCollided && debrisPositions.map((pos, i) => (
                                             <Debris key={i} position={pos} />
                                         ))}
                                     </Physics>
-                                    
-                                    <HUD 
+
+                                    <HUD
                                         currentPoint={currentPoint}
                                         currentFrame={currentFrame}
                                         totalFrames={orbitData.length}
                                         isPlaying={isPlaying}
                                         speed={speed}
                                         hasCollided={hasCollided}
+                                        cameraFollow={cameraFollow}
                                         onPlayPause={handlePlayPause}
                                         onReset={handleReset}
                                         onSpeedChange={setSpeed}
@@ -536,20 +606,44 @@ export default function Simulacion3D() {
                                             setCurrentFrame(frame);
                                             setIsPlaying(false);
                                         }}
+                                        onCameraFollowToggle={() => setCameraFollow(!cameraFollow)}
                                     />
-                                    
-                                    <OrbitControls 
+
+                                    <OrbitControls
                                         enableZoom={true}
                                         enablePan={true}
                                         enableRotate={true}
-                                        minDistance={30}
-                                        maxDistance={2000}
+                                        minDistance={100}
+                                        maxDistance={5000}
+                                        target={cameraFollow && currentPoint ? [
+                                            (currentPoint.x_m / 1e7) * 50,
+                                            (currentPoint.y_m / 1e7) * 50,
+                                            (currentPoint.z_m / 1e7) * 50
+                                        ] : [0, 0, 0]}
                                     />
                                 </Canvas>
                             </div>
                         )}
                     </CardContent>
                 </Card>
+
+                <Dialog open={showImpactModal} onOpenChange={setShowImpactModal}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle className="text-2xl font-bold text-red-600">⚠️ Impacto Detectado</DialogTitle>
+                            <DialogDescription className="text-base pt-4">
+                                El meteorito ha impactado con la Tierra. La colisión ha generado fragmentos que se dispersan por el espacio.
+                                <br /><br />
+                                <span className="font-semibold">Este evento representa una amenaza significativa para el planeta.</span>
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter className="sm:justify-center">
+                            <Button onClick={handleReset} className="w-full sm:w-auto">
+                                Reiniciar Simulación
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         </AppLayout>
     );

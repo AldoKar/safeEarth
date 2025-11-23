@@ -22,10 +22,6 @@ Route::middleware(['auth', 'verified'])->group(function () {
         return Inertia::render('simulacion-3d');
     })->name('simulacion-3d');
 
-    Route::get('simulacion-tecnica', function () {
-        return Inertia::render('simulacion-tecnica');
-    })->name('simulacion-tecnica');
-
     Route::get('graficas', function () {
         return Inertia::render('graficas');
     })->name('graficas');

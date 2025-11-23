@@ -33,11 +33,6 @@ const mainNavItems: NavItem[] = [
         icon: Globe,
     },
     {
-        title: 'Simulación Técnica',
-        href: '/simulacion-tecnica',
-        icon: Settings,
-    },
-    {
         title: 'Gráficas',
         href: '/graficas',
         icon: BarChart3,

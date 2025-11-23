@@ -12,6 +12,14 @@ import {
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -46,9 +54,13 @@ export default function Simulacion2D() {
     const [orbitData, setOrbitData] = useState<OrbitPoint[]>([]);
     const [currentFrame, setCurrentFrame] = useState(0);
     const [isPlaying, setIsPlaying] = useState(false);
-    const [speed, setSpeed] = useState(1);
+    const [speed, setSpeed] = useState(0.25);
     const [zoom, setZoom] = useState(1.0);
     const [isLoading, setIsLoading] = useState(true);
+    const [controlsPosition, setControlsPosition] = useState({ x: 0, y: 0 });
+    const [isControlsDragging, setIsControlsDragging] = useState(false);
+    const [controlsDragStart, setControlsDragStart] = useState({ x: 0, y: 0 });
+    const [showImpactModal, setShowImpactModal] = useState(false);
     const animationRef = useRef<number | undefined>(undefined);
 
     useEffect(() => {
@@ -354,36 +366,6 @@ export default function Simulacion2D() {
                 ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
                 ctx.stroke();
             });
-
-            // Mensaje de impacto cuando llega al último frame
-            if (currentFrame === orbitData.length - 1) {
-                // Fondo semitransparente para el mensaje
-                ctx.fillStyle = 'rgba(220, 38, 38, 0.9)';
-                ctx.shadowBlur = 20;
-                ctx.shadowColor = 'rgba(220, 38, 38, 0.8)';
-                const msgWidth = 400;
-                const msgHeight = 100;
-                const msgX = (width - msgWidth) / 2;
-                const msgY = (height - msgHeight) / 2;
-                ctx.fillRect(msgX, msgY, msgWidth, msgHeight);
-                ctx.shadowBlur = 0;
-
-                // Borde brillante
-                ctx.strokeStyle = '#fca5a5';
-                ctx.lineWidth = 3;
-                ctx.strokeRect(msgX, msgY, msgWidth, msgHeight);
-
-                // Texto principal
-                ctx.fillStyle = '#ffffff';
-                ctx.font = 'bold 32px sans-serif';
-                ctx.textAlign = 'center';
-                ctx.fillText('⚠️ IMPACTO DETECTADO ⚠️', width / 2, height / 2 - 10);
-
-                // Texto secundario
-                ctx.font = '16px sans-serif';
-                ctx.fillStyle = '#fecaca';
-                ctx.fillText('El meteorito colisionó con la Tierra', width / 2, height / 2 + 25);
-            }
         };
 
         resizeCanvas();
@@ -408,6 +390,7 @@ export default function Simulacion2D() {
                     setCurrentFrame((prev) => {
                         if (prev >= orbitData.length - 1) {
                             setIsPlaying(false);
+                            setShowImpactModal(true);
                             return orbitData.length - 1; // Mantener en el último frame
                         }
                         return prev + 1;
@@ -432,6 +415,22 @@ export default function Simulacion2D() {
     const handleReset = () => {
         setCurrentFrame(0);
         setIsPlaying(false);
+        setShowImpactModal(false);
+    };
+
+    const handleControlsMouseDown = (e: React.MouseEvent) => {
+        setIsControlsDragging(true);
+        setControlsDragStart({ x: e.clientX - controlsPosition.x, y: e.clientY - controlsPosition.y });
+    };
+
+    const handleControlsMouseMove = (e: React.MouseEvent) => {
+        if (isControlsDragging) {
+            setControlsPosition({ x: e.clientX - controlsDragStart.x, y: e.clientY - controlsDragStart.y });
+        }
+    };
+
+    const handleControlsMouseUp = () => {
+        setIsControlsDragging(false);
     };
 
     const currentPoint =
@@ -441,257 +440,175 @@ export default function Simulacion2D() {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Simulación 2D" />
             <div className="flex h-full flex-1 flex-col gap-4 p-4">
-                <Card>
-                    <CardHeader>
-                        <div className="flex items-center justify-between">
-                            <div>
-                                <CardTitle className="text-2xl">
-                                    Simulación Orbital 2D
-                                </CardTitle>
-                                <CardDescription>
-                                    Órbita del meteorito según las leyes de
-                                    Kepler
-                                </CardDescription>
+                <Card className="flex-1">
+                    <CardContent className="p-0 h-full relative">
+                        {isLoading ? (
+                            <div className="w-full h-full flex flex-col items-center justify-center gap-4 min-h-[700px]">
+                                <div className="relative">
+                                    <div className="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
+                                    <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-b-primary/50 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1s' }}></div>
+                                </div>
+                                <div className="text-center space-y-2">
+                                    <p className="text-lg font-semibold">Cargando datos orbitales...</p>
+                                    <p className="text-sm text-muted-foreground">Obteniendo datos de simulación de Kepler</p>
+                                </div>
                             </div>
-                            <div className="flex gap-2">
-                                {currentFrame === orbitData.length - 1 && orbitData.length > 0 && (
-                                    <Badge variant="destructive" className="animate-pulse">
-                                        ⚠️ IMPACTO
-                                    </Badge>
-                                )}
-                                <Badge variant="secondary">
-                                    Frame {currentFrame + 1} / {orbitData.length}
-                                </Badge>
+                        ) : (
+                            <div className="relative w-full h-full min-h-[700px]">
+                                <canvas
+                                    ref={canvasRef}
+                                    className="w-full h-full rounded-lg"
+                                />
+                                
+                                {/* HUD Overlay */}
+                                <div 
+                                    className="absolute inset-0 flex flex-col p-6 text-white pointer-events-none"
+                                    onMouseMove={handleControlsMouseMove}
+                                    onMouseUp={handleControlsMouseUp}
+                                >
+                                    {/* Real-time data overlay - Top Right */}
+                                    {currentPoint && (
+                                        <div className="ml-auto bg-black/70 backdrop-blur-sm rounded-lg p-4 border border-white/20 max-w-xs pointer-events-auto">
+                                            <h3 className="font-bold mb-2 text-sm">Datos en Tiempo Real</h3>
+                                            <div className="space-y-2 text-xs">
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-300">Tiempo:</span>
+                                                    <span className="font-mono">{(currentPoint.time_sec / 86400).toFixed(2)} días</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-300">Posición X:</span>
+                                                    <span className="font-mono">{(currentPoint.x_m / 1e6).toFixed(2)} Mm</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-300">Posición Y:</span>
+                                                    <span className="font-mono">{(currentPoint.y_m / 1e6).toFixed(2)} Mm</span>
+                                                </div>
+                                                <div className="flex justify-between">
+                                                    <span className="text-gray-300">Distancia:</span>
+                                                    <span className="font-mono">{(currentPoint.r_m / 1000).toFixed(0)} km</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
+
+                                    {/* Bottom controls (Draggable) */}
+                                    <div className="mt-auto pointer-events-auto">
+                                        <div 
+                                            className="bg-black/70 backdrop-blur-sm rounded-lg p-4 border border-white/20 max-w-md mx-auto"
+                                            style={{ transform: `translate(${controlsPosition.x}px, ${controlsPosition.y}px)` }}
+                                        >
+                                            <div 
+                                                className="text-xs font-semibold text-gray-300 mb-3 cursor-move select-none text-center"
+                                                onMouseDown={handleControlsMouseDown}
+                                            >
+                                                ⋮⋮ Controles ⋮⋮
+                                            </div>
+                                            <div className="flex gap-3 items-center mb-4">
+                                                <Button
+                                                    onClick={handlePlayPause}
+                                                    size="sm"
+                                                    variant={isPlaying ? 'secondary' : 'default'}
+                                                    disabled={orbitData.length === 0}
+                                                >
+                                                    {isPlaying ? (
+                                                        <>
+                                                            <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                                                                <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
+                                                            </svg>
+                                                            Pausar
+                                                        </>
+                                                    ) : (
+                                                        <>
+                                                            <svg className="w-4 h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                                                                <path d="M8 5v14l11-7z" />
+                                                            </svg>
+                                                            Iniciar
+                                                        </>
+                                                    )}
+                                                </Button>
+                                                <Button onClick={handleReset} variant="outline" size="sm" disabled={orbitData.length === 0}>
+                                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+                                                    </svg>
+                                                </Button>
+                                            </div>
+                                            
+                                            <div className="space-y-3">
+                                                <div>
+                                                    <label className="text-xs text-gray-300 mb-1 block">
+                                                        Velocidad: {speed}x
+                                                    </label>
+                                                    <input
+                                                        type="range"
+                                                        min="0"
+                                                        max="5"
+                                                        step="0.25"
+                                                        value={speed}
+                                                        onChange={(e) => setSpeed(Number(e.target.value))}
+                                                        className="w-full"
+                                                        disabled={orbitData.length === 0}
+                                                    />
+                                                </div>
+                                                
+                                                <div>
+                                                    <label className="text-xs text-gray-300 mb-1 block">
+                                                        Zoom: {zoom.toFixed(1)}x
+                                                    </label>
+                                                    <input
+                                                        type="range"
+                                                        min="0.5"
+                                                        max="10"
+                                                        step="0.5"
+                                                        value={zoom}
+                                                        onChange={(e) => setZoom(Number(e.target.value))}
+                                                        className="w-full"
+                                                        disabled={orbitData.length === 0}
+                                                    />
+                                                </div>
+                                                
+                                                <div>
+                                                    <label className="text-xs text-gray-300 mb-1 block">
+                                                        Posición en órbita
+                                                    </label>
+                                                    <input
+                                                        type="range"
+                                                        min="0"
+                                                        max={orbitData.length - 1}
+                                                        value={currentFrame}
+                                                        onChange={(e) => {
+                                                            setCurrentFrame(Number(e.target.value));
+                                                            setIsPlaying(false);
+                                                        }}
+                                                        className="w-full"
+                                                        disabled={orbitData.length === 0}
+                                                    />
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
                             </div>
-                        </div>
-                    </CardHeader>
+                        )}
+                    </CardContent>
                 </Card>
 
-                <div className="grid grid-cols-1 lg:grid-cols-4 gap-4 flex-1">
-                    <div className="lg:col-span-3">
-                        <Card className="h-full">
-                            <CardContent className="p-0 h-full relative">
-                                {isLoading ? (
-                                    <div className="w-full h-full flex flex-col items-center justify-center gap-4 min-h-[500px]">
-                                        <div className="relative">
-                                            <div className="w-16 h-16 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-                                            <div className="absolute inset-0 w-16 h-16 border-4 border-transparent border-b-primary/50 rounded-full animate-spin" style={{ animationDirection: 'reverse', animationDuration: '1s' }}></div>
-                                        </div>
-                                        <div className="text-center space-y-2">
-                                            <p className="text-lg font-semibold">Cargando datos orbitales...</p>
-                                            <p className="text-sm text-muted-foreground">Obteniendo datos de simulación de Kepler</p>
-                                        </div>
-                                    </div>
-                                ) : (
-                                    <canvas
-                                        ref={canvasRef}
-                                        className="w-full h-full rounded-lg"
-                                    />
-                                )}
-                            </CardContent>
-                        </Card>
-                    </div>
-
-                    <div className="space-y-4">
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-base">
-                                    Controles
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-3">
-                                <div className="flex gap-2">
-                                    <Button
-                                        onClick={handlePlayPause}
-                                        className="flex-1"
-                                        variant={
-                                            isPlaying ? 'secondary' : 'default'
-                                        }
-                                        disabled={isLoading || orbitData.length === 0}
-                                    >
-                                        {isPlaying ? (
-                                            <>
-                                                <svg
-                                                    className="w-4 h-4 mr-2"
-                                                    fill="currentColor"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path d="M6 4h4v16H6V4zm8 0h4v16h-4V4z" />
-                                                </svg>
-                                                Pausar
-                                            </>
-                                        ) : (
-                                            <>
-                                                <svg
-                                                    className="w-4 h-4 mr-2"
-                                                    fill="currentColor"
-                                                    viewBox="0 0 24 24"
-                                                >
-                                                    <path d="M8 5v14l11-7z" />
-                                                </svg>
-                                                Iniciar
-                                            </>
-                                        )}
-                                    </Button>
-                                    <Button
-                                        onClick={handleReset}
-                                        variant="outline"
-                                        disabled={isLoading || orbitData.length === 0}
-                                    >
-                                        <svg
-                                            className="w-4 h-4"
-                                            fill="none"
-                                            stroke="currentColor"
-                                            viewBox="0 0 24 24"
-                                        >
-                                            <path
-                                                strokeLinecap="round"
-                                                strokeLinejoin="round"
-                                                strokeWidth={2}
-                                                d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-                                            />
-                                        </svg>
-                                    </Button>
-                                </div>
-                                <Separator />
-                                <div>
-                                    <label className="text-sm text-muted-foreground mb-2 block">
-                                        Velocidad: {speed}x
-                                    </label>
-                                    <input
-                                        type="range"
-                                        min="1"
-                                        max="5"
-                                        value={speed}
-                                        onChange={(e) =>
-                                            setSpeed(Number(e.target.value))
-                                        }
-                                        className="w-full"
-                                        disabled={isLoading}
-                                    />
-                                </div>
-                                <Separator />
-                                <div>
-                                    <label className="text-sm text-muted-foreground mb-2 block">
-                                        Zoom: {zoom.toFixed(1)}x
-                                    </label>
-                                    <input
-                                        type="range"
-                                        min="0.5"
-                                        max="10"
-                                        step="0.5"
-                                        value={zoom}
-                                        onChange={(e) =>
-                                            setZoom(Number(e.target.value))
-                                        }
-                                        className="w-full"
-                                        disabled={isLoading}
-                                    />
-                                </div>
-                                <Separator />
-                                <div>
-                                    <label className="text-sm text-muted-foreground mb-2 block">
-                                        Posición en órbita
-                                    </label>
-                                    <input
-                                        type="range"
-                                        min="0"
-                                        max={orbitData.length - 1}
-                                        value={currentFrame}
-                                        onChange={(e) => {
-                                            setCurrentFrame(
-                                                Number(e.target.value),
-                                            );
-                                            setIsPlaying(false);
-                                        }}
-                                        className="w-full"
-                                        disabled={isLoading || orbitData.length === 0}
-                                    />
-                                </div>
-                            </CardContent>
-                        </Card>
-
-                        {currentPoint && (
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle className="text-base">
-                                        Datos Actuales
-                                    </CardTitle>
-                                </CardHeader>
-                                <CardContent className="space-y-3">
-                                    <div>
-                                        <p className="text-xs text-muted-foreground mb-1">
-                                            Tiempo
-                                        </p>
-                                        <p className="text-sm font-mono">
-                                            {(currentPoint.time_sec / 86400).toFixed(2)} días
-                                        </p>
-                                    </div>
-                                    <Separator />
-                                    <div>
-                                        <p className="text-xs text-muted-foreground mb-1">
-                                            Posición X (Mm)
-                                        </p>
-                                        <p className="text-sm font-mono">
-                                            {(currentPoint.x_m / 1e6).toFixed(2)}
-                                        </p>
-                                    </div>
-                                    <Separator />
-                                    <div>
-                                        <p className="text-xs text-muted-foreground mb-1">
-                                            Posición Y (Mm)
-                                        </p>
-                                        <p className="text-sm font-mono">
-                                            {(currentPoint.y_m / 1e6).toFixed(2)}
-                                        </p>
-                                    </div>
-                                    <Separator />
-                                    <div>
-                                        <p className="text-xs text-muted-foreground mb-1">
-                                            Distancia (km)
-                                        </p>
-                                        <p className="text-sm font-mono">
-                                            {(currentPoint.r_m / 1000).toFixed(0)}
-                                        </p>
-                                    </div>
-                                </CardContent>
-                            </Card>
-                        )}
-
-                        <Card>
-                            <CardHeader>
-                                <CardTitle className="text-base">
-                                    Leyenda
-                                </CardTitle>
-                            </CardHeader>
-                            <CardContent className="space-y-2">
-                                <div className="flex items-center gap-2">
-                                    <div className="w-4 h-4 rounded-full bg-gradient-to-br from-[#4fa3d1] to-[#2b7da8] border border-blue-300"></div>
-                                    <span className="text-sm">Tierra</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-4 h-4 rounded-full bg-[#ef4444]"></div>
-                                    <span className="text-sm">Meteorito</span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div className="w-4 h-1 bg-[#3b82f6]"></div>
-                                    <span className="text-sm">
-                                        Trayectoria recorrida
-                                    </span>
-                                </div>
-                                <div className="flex items-center gap-2">
-                                    <div
-                                        className="w-4 h-0.5 border-t-2 border-dashed"
-                                        style={{ borderColor: '#666' }}
-                                    ></div>
-                                    <span className="text-sm">
-                                        Órbita completa
-                                    </span>
-                                </div>
-                            </CardContent>
-                        </Card>
-                    </div>
-                </div>
+                <Dialog open={showImpactModal} onOpenChange={setShowImpactModal}>
+                    <DialogContent className="sm:max-w-md">
+                        <DialogHeader>
+                            <DialogTitle className="text-2xl font-bold text-red-600">Impacto Detectado</DialogTitle>
+                            <DialogDescription className="text-base pt-4">
+                                El meteorito ha impactado con la Tierra. La trayectoria orbital ha concluido en colisión.
+                                <br /><br />
+                                <span className="font-semibold">Este evento representa una amenaza significativa para el planeta.</span>
+                            </DialogDescription>
+                        </DialogHeader>
+                        <DialogFooter className="sm:justify-center">
+                            <Button onClick={handleReset} className="w-full sm:w-auto">
+                                Reiniciar Simulación
+                            </Button>
+                        </DialogFooter>
+                    </DialogContent>
+                </Dialog>
             </div>
         </AppLayout>
     );
