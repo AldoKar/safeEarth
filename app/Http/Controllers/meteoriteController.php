@@ -23,17 +23,11 @@ class meteoriteController extends Controller
         return response()->json(['error' => 'API request failed']);
     }
 
-    public function getKepplerData()
-    {
-        try {
-            $response = Http::timeout(5)->get('http://127.0.0.1:8001/datos');
-            if ($response->successful()) {
-                $data = $response->json();
-                return response()->json($data);
-            }
-        } catch (\Exception $e) {
-            // Return empty data instead of error to prevent frontend crash
-            return response()->json(['data' => []]);
+    public function getKepplerData(){
+        $response = Http::get('http://3.141.38.117/datos2D');
+        if ($response->successful()) {
+            $data = $response->json();
+            return response()->json($data);
         }
 
         return response()->json(['data' => []]);
