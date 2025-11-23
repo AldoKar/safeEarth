@@ -32,4 +32,14 @@ class meteoriteController extends Controller
 
         return response()->json(['data' => []]);
     }
+
+    public function getKepplerData3D(){
+        $response = Http::get('http://3.141.38.117/datos3D');
+        if ($response->successful()) {
+            $data = $response->json();
+            return response()->json($data);
+        }
+
+        return response()->json(['data' => []]);
+    }
 }
