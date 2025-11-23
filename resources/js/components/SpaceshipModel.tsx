@@ -22,35 +22,20 @@ export default function SpaceshipModel({
     const meshRef = useRef<THREE.Group>(null);
 
     useEffect(() => {
-        // Fix missing textures by applying a default material
         gltf.scene.traverse((child) => {
-            if (child instanceof THREE.Mesh) {
-                // Replace material if texture is missing
-                if (child.material) {
-                    const materials = Array.isArray(child.material) ? child.material : [child.material];
-                    
-                    materials.forEach((mat) => {
-                        // If texture loading failed, use a solid color
-                        if (mat.map && !mat.map.image) {
-                            mat.map = null;
-                            mat.color = new THREE.Color(0x888888); // Gray color
-                        }
-                        
-                        // Ensure material responds to lights
-                        if (mat instanceof THREE.MeshStandardMaterial) {
-                            mat.metalness = 0.6;
-                            mat.roughness = 0.4;
-                        }
-                        
-                        mat.needsUpdate = true;
-                    });
+            if ((child as THREE.Mesh).isMesh) {
+                const mesh = child as THREE.Mesh;
+                if (mesh.material) {
+                    const material = mesh.material as THREE.MeshStandardMaterial;
+                    material.metalness = 0.1;
+                    material.roughness = 0.9;
+                    // White color
+                    material.color.setRGB(1, 1, 1);
+                    material.needsUpdate = true;
                 }
-                
-                child.castShadow = true;
-                child.receiveShadow = true;
             }
         });
-    }, [gltf.scene]);
+    }, [gltf]);
 
     useFrame(() => {
         if (rotate && meshRef.current) {

@@ -3,7 +3,7 @@ import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/react';
 import { Shield, Zap, Rocket, Satellite } from 'lucide-react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Stars, PerspectiveCamera } from '@react-three/drei';
+import { OrbitControls, Stars, PerspectiveCamera, Grid } from '@react-three/drei';
 import { Suspense } from 'react';
 import SpaceshipModel from '@/components/SpaceshipModel';
 
@@ -106,14 +106,20 @@ export default function ModelosDefensa() {
                                             {/* Improved lighting setup */}
                                             <ambientLight intensity={1.5} />
                                             <directionalLight position={[5, 5, 5]} intensity={2} />
-                                            <pointLight position={[-5, -5, -5]} intensity={1} />
+                                            <spotLight position={[-5, 5, -5]} intensity={1} angle={0.5} />
                                     
                                             <SpaceshipModel 
                                                 modelPath={model.modelPath}
-                                                scale={1.5}
+                                                scale={0.05}
                                                 position={[0, 0, 0]}
                                                 rotate={true}
                                             />
+
+                                        <Grid 
+                                            args={[10, 10]}
+                                            sectionSize={1}
+                                            cellSize={1}
+                                        />
                                             
                                             <OrbitControls 
                                                 enableZoom={true}
